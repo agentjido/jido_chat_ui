@@ -1,0 +1,42 @@
+<Layouts.flash_group flash={@flash} />
+
+<main class="min-h-screen bg-base-100">
+  <section class="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-6 py-16">
+    <div class="max-w-3xl">
+      <p class="text-sm font-semibold uppercase tracking-wide opacity-60">Jido Chat UI</p>
+      <h1 class="mt-4 text-4xl font-semibold leading-tight text-balance sm:text-6xl">
+        A Phoenix console for testing chat adapters, shared rooms, and Jidoka agents.
+      </h1>
+      <p class="mt-6 max-w-2xl text-lg leading-8 opacity-75">
+        Create a room, configure adapter bridges, bind external conversations, and inspect how
+        `jido_chat_*` and `jido_messaging` behave together.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        <.link href={~p"/users/register"} class="btn btn-primary">Create account</.link>
+        <.link href={~p"/users/log-in"} class="btn">Log in</.link>
+        <.link navigate={~p"/guides/getting-started"} class="btn btn-ghost">Read guide</.link>
+      </div>
+    </div>
+
+    <div class="mt-12 grid gap-4 md:grid-cols-3">
+      <div class="rounded-lg border border-base-300 bg-base-100 p-5">
+        <h2 class="font-semibold">Rooms</h2>
+        <p class="mt-2 text-sm opacity-70">
+          Internal timelines that can bind to many external chat systems.
+        </p>
+      </div>
+      <div class="rounded-lg border border-base-300 bg-base-100 p-5">
+        <h2 class="font-semibold">Bridges</h2>
+        <p class="mt-2 text-sm opacity-70">
+          GitHub, Slack, Telegram, Discord, Mattermost, and X adapters.
+        </p>
+      </div>
+      <div class="rounded-lg border border-base-300 bg-base-100 p-5">
+        <h2 class="font-semibold">Agents</h2>
+        <p class="mt-2 text-sm opacity-70">
+          Jidoka room responders with visible chat and debug state split apart.
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
