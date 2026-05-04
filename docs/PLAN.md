@@ -93,7 +93,7 @@ Planned:
 
 - observable room timeline server
 - timeline component with projections
-- composer-local state
+- Phoenix composer posting into the observable timeline
 - live bridge status panels
 
 ### Phase 4: Jidoka Room Agents

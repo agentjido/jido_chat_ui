@@ -2,6 +2,7 @@ defmodule JidoChatUIWeb.RoomLive.Show do
   use JidoChatUIWeb, :live_view
 
   alias JidoChatUI.Chat
+  alias JidoChatUI.RoomTimeline
 
   @impl true
   def render(assigns) do
@@ -25,18 +26,34 @@ defmodule JidoChatUIWeb.RoomLive.Show do
 
       <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <section class="rounded-lg border border-base-300 bg-base-100">
-          <div class="border-b border-base-300 px-4 py-3">
-            <h2 class="font-semibold">Timeline</h2>
-            <p class="text-sm opacity-70">Filament-backed live timeline lands here next.</p>
-          </div>
-          <div class="space-y-3 p-4">
-            <div class="rounded-lg bg-base-200 p-3">
-              <p class="text-sm font-medium">System</p>
-              <p class="mt-1 text-sm opacity-80">
-                Room is ready. Add a bridge, then send a message from the adapter or the composer.
+          {live_render(@socket, JidoChatUIWeb.RoomTimelineLive,
+            id: "room-timeline-#{@room.id}",
+            session: %{
+              "room_id" => @room.id,
+              "room_name" => @room.name,
+              "current_user_email" => @current_scope.user.email
+            }
+          )}
+
+          <form
+            id="timeline-composer-form"
+            class="border-t border-base-300 p-4"
+            phx-submit="timeline_message"
+          >
+            <label class="sr-only" for={"timeline-composer-#{@composer_version}"}>Message</label>
+            <textarea
+              id={"timeline-composer-#{@composer_version}"}
+              name="body"
+              class="textarea min-h-24 w-full resize-y"
+              placeholder="Send a local room message"
+            ></textarea>
+            <div class="mt-3 flex items-center justify-between gap-3">
+              <p class="text-xs opacity-60">
+                Local messages stay in the in-memory Filament timeline until persistence lands.
               </p>
+              <.button variant="primary" phx-disable-with="Sending...">Send</.button>
             </div>
-          </div>
+          </form>
         </section>
 
         <aside class="space-y-4">
@@ -70,7 +87,26 @@ defmodule JidoChatUIWeb.RoomLive.Show do
     {:ok,
      socket
      |> assign(:page_title, "Show Room")
+     |> assign(:composer_version, 0)
      |> assign(:room, Chat.get_room!(socket.assigns.current_scope, id))}
+  end
+
+  @impl true
+  def handle_event("timeline_message", %{"body" => body}, socket) do
+    body = String.trim(to_string(body))
+
+    if body != "" do
+      socket.assigns.room.id
+      |> RoomTimeline.ensure_started(socket.assigns.room.name)
+      |> RoomTimeline.post_message(%{
+        author: socket.assigns.current_scope.user.email,
+        body: body,
+        source: "ui",
+        status: "sent"
+      })
+    end
+
+    {:noreply, update(socket, :composer_version, &(&1 + 1))}
   end
 
   @impl true

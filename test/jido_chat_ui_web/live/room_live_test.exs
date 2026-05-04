@@ -4,6 +4,8 @@ defmodule JidoChatUIWeb.RoomLiveTest do
   import Phoenix.LiveViewTest
   import JidoChatUI.ChatFixtures
 
+  alias JidoChatUI.RoomTimeline
+
   @create_attrs %{
     name: "some name",
     status: "draft",
@@ -102,6 +104,23 @@ defmodule JidoChatUIWeb.RoomLiveTest do
 
       assert html =~ "Show Room"
       assert html =~ room.name
+      assert html =~ "Timeline"
+    end
+
+    test "composer posts to the Filament room timeline", %{conn: conn, room: room} do
+      {:ok, show_live, _html} = live(conn, ~p"/rooms/#{room}")
+
+      assert show_live
+             |> form("#timeline-composer-form", %{"body" => "hello from live test"})
+             |> render_submit()
+
+      messages =
+        room.id
+        |> RoomTimeline.ensure_started(room.name)
+        |> :sys.get_state()
+        |> Map.fetch!(:messages)
+
+      assert Enum.any?(messages, &(&1.body == "hello from live test"))
     end
 
     test "updates room and returns to show", %{conn: conn, room: room} do

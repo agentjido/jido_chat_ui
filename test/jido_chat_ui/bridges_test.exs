@@ -53,6 +53,30 @@ defmodule JidoChatUI.BridgesTest do
       assert {:error, %Ecto.Changeset{}} = Bridges.create_bridge(scope, @invalid_attrs)
     end
 
+    test "create_bridge/2 removes blank adapter config values" do
+      scope = user_scope_fixture()
+
+      valid_attrs = %{
+        name: "github bridge",
+        status: "draft",
+        config: %{
+          "owner_repo" => "agentjido/jido_chat_ui",
+          "issue_number" => "",
+          "token_env" => "  GITHUB_TOKEN  ",
+          "webhook_secret_env" => nil
+        },
+        metadata: %{},
+        adapter: "github"
+      }
+
+      assert {:ok, %Bridge{} = bridge} = Bridges.create_bridge(scope, valid_attrs)
+
+      assert bridge.config == %{
+               "owner_repo" => "agentjido/jido_chat_ui",
+               "token_env" => "GITHUB_TOKEN"
+             }
+    end
+
     test "update_bridge/3 with valid data updates the bridge" do
       scope = user_scope_fixture()
       bridge = bridge_fixture(scope)

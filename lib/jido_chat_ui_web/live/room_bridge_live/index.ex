@@ -90,11 +90,13 @@ defmodule JidoChatUIWeb.RoomBridgeLive.Index do
   def mount(%{"room_id" => room_id}, _session, socket) do
     scope = socket.assigns.current_scope
     room = Chat.get_room!(scope, room_id)
+    bridges = Bridges.list_bridges(scope)
 
     room_bridge = %RoomBridge{
       user_id: scope.user.id,
       room_id: room.id,
-      status: "draft",
+      bridge_id: default_bridge_id(bridges),
+      status: "active",
       metadata: %{}
     }
 
@@ -102,8 +104,8 @@ defmodule JidoChatUIWeb.RoomBridgeLive.Index do
      socket
      |> assign(:page_title, "Room Bridges")
      |> assign(:room, room)
-     |> assign(:bridges, Bridges.list_bridges(scope))
-     |> assign(:bridge_options, Bridges.bridge_options(scope))
+     |> assign(:bridges, bridges)
+     |> assign(:bridge_options, bridge_options(bridges))
      |> assign(:room_bridges, Chat.list_room_bridges_for_room(scope, room.id))
      |> assign(:room_bridge, room_bridge)
      |> assign(:form, to_form(Chat.change_room_bridge(scope, room_bridge)))}
@@ -118,7 +120,11 @@ defmodule JidoChatUIWeb.RoomBridgeLive.Index do
   end
 
   def handle_event("save", %{"room_bridge" => params}, socket) do
-    params = Map.put(params, "room_id", socket.assigns.room.id)
+    params =
+      params
+      |> Map.put("room_id", socket.assigns.room.id)
+      |> put_default("bridge_id", socket.assigns.room_bridge.bridge_id)
+      |> put_default("status", "active")
 
     case Chat.create_room_bridge(socket.assigns.current_scope, params) do
       {:ok, _binding} ->
@@ -139,5 +145,18 @@ defmodule JidoChatUIWeb.RoomBridgeLive.Index do
       nil -> "Bridge #{bridge_id}"
       bridge -> bridge.name
     end
+  end
+
+  defp default_bridge_id([bridge | _bridges]), do: bridge.id
+  defp default_bridge_id([]), do: nil
+
+  defp bridge_options(bridges), do: Enum.map(bridges, &{&1.name, &1.id})
+
+  defp put_default(params, key, default) do
+    Map.update(params, key, default, fn
+      "" -> default
+      nil -> default
+      value -> value
+    end)
   end
 end

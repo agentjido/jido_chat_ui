@@ -23,6 +23,28 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
           options={@adapter_options}
         />
         <.input field={@form[:status]} type="text" label="Status" />
+
+        <section
+          :if={@config_fields != []}
+          class="my-4 rounded-lg border border-base-300 bg-base-200/40 p-4"
+        >
+          <h2 class="text-sm font-semibold">Adapter config</h2>
+          <p class="mt-1 text-sm opacity-70">
+            Store stable room and env-var names here. Put actual secrets in `.env`.
+          </p>
+          <div class="mt-4 grid gap-3 md:grid-cols-2">
+            <.input
+              :for={field <- @config_fields}
+              type="text"
+              id={"bridge_config_#{field.key}"}
+              name={"bridge[config][#{field.key}]"}
+              label={field.label}
+              value={config_value(@form, field.key)}
+              placeholder={field.placeholder}
+            />
+          </div>
+        </section>
+
         <footer>
           <.button phx-disable-with="Saving..." variant="primary">Save Bridge</.button>
           <.button navigate={return_path(@current_scope, @return_to, @bridge)}>Cancel</.button>
@@ -38,6 +60,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
      socket
      |> assign(:return_to, return_to(params["return_to"]))
      |> assign(:adapter_options, JidoChatUI.Adapters.select_options())
+     |> assign(:config_fields, [])
      |> apply_action(socket.assigns.live_action, params)}
   end
 
@@ -50,6 +73,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
     socket
     |> assign(:page_title, "Edit Bridge")
     |> assign(:bridge, bridge)
+    |> assign(:config_fields, JidoChatUI.Adapters.config_fields(bridge.adapter))
     |> assign(:form, to_form(Bridges.change_bridge(socket.assigns.current_scope, bridge)))
   end
 
@@ -59,15 +83,21 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
     socket
     |> assign(:page_title, "New Bridge")
     |> assign(:bridge, bridge)
+    |> assign(:config_fields, [])
     |> assign(:form, to_form(Bridges.change_bridge(socket.assigns.current_scope, bridge)))
   end
 
   @impl true
   def handle_event("validate", %{"bridge" => bridge_params}, socket) do
+    adapter = Map.get(bridge_params, "adapter")
+
     changeset =
       Bridges.change_bridge(socket.assigns.current_scope, socket.assigns.bridge, bridge_params)
 
-    {:noreply, assign(socket, form: to_form(changeset, action: :validate))}
+    {:noreply,
+     socket
+     |> assign(:config_fields, JidoChatUI.Adapters.config_fields(adapter))
+     |> assign(form: to_form(changeset, action: :validate))}
   end
 
   def handle_event("save", %{"bridge" => bridge_params}, socket) do
@@ -106,4 +136,12 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
 
   defp return_path(_scope, "index", _bridge), do: ~p"/bridges"
   defp return_path(_scope, "show", bridge), do: ~p"/bridges/#{bridge}"
+
+  defp config_value(%Phoenix.HTML.Form{} = form, key) do
+    params = form.params || %{}
+    changeset = form.source
+    config = Ecto.Changeset.get_field(changeset, :config, %{}) || %{}
+
+    get_in(params, ["config", key]) || Map.get(config, key) || ""
+  end
 end

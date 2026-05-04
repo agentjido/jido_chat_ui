@@ -12,6 +12,8 @@ defmodule JidoChatUI.Application do
       JidoChatUI.Repo,
       {DNSCluster, query: Application.get_env(:jido_chat_ui, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: JidoChatUI.PubSub},
+      {Registry, keys: :unique, name: JidoChatUI.RoomTimeline.Registry},
+      {DynamicSupervisor, strategy: :one_for_one, name: JidoChatUI.RoomTimeline.Supervisor},
       JidoChatUI.Messaging,
       # Start a worker by calling: JidoChatUI.Worker.start_link(arg)
       # {JidoChatUI.Worker, arg},

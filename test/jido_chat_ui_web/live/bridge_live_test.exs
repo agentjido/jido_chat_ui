@@ -4,6 +4,8 @@ defmodule JidoChatUIWeb.BridgeLiveTest do
   import Phoenix.LiveViewTest
   import JidoChatUI.BridgesFixtures
 
+  alias JidoChatUI.Bridges
+
   @create_attrs %{
     name: "some name",
     status: "draft",
@@ -58,6 +60,47 @@ defmodule JidoChatUIWeb.BridgeLiveTest do
       html = render(index_live)
       assert html =~ "Bridge created successfully"
       assert html =~ "some name"
+    end
+
+    test "saves adapter config from the bridge form", %{conn: conn, scope: scope} do
+      {:ok, form_live, _html} = live(conn, ~p"/bridges/new")
+
+      html =
+        form_live
+        |> form("#bridge-form",
+          bridge: %{name: "repo bridge", status: "draft", adapter: "github"}
+        )
+        |> render_change()
+
+      assert html =~ "Adapter config"
+      assert html =~ "Owner/repo"
+      assert html =~ "Token env"
+
+      attrs = %{
+        name: "repo bridge",
+        status: "draft",
+        adapter: "github",
+        config: %{
+          "owner_repo" => " agentjido/jido_chat_ui ",
+          "issue_number" => "",
+          "token_env" => " GITHUB_TOKEN "
+        }
+      }
+
+      assert {:ok, _index_live, _html} =
+               form_live
+               |> form("#bridge-form", bridge: attrs)
+               |> render_submit()
+               |> follow_redirect(conn, ~p"/bridges")
+
+      bridge = Enum.find(Bridges.list_bridges(scope), &(&1.name == "repo bridge"))
+
+      assert bridge
+
+      assert bridge.config == %{
+               "owner_repo" => "agentjido/jido_chat_ui",
+               "token_env" => "GITHUB_TOKEN"
+             }
     end
 
     test "updates bridge in listing", %{conn: conn, bridge: bridge} do

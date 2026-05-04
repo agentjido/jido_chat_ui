@@ -12,7 +12,7 @@ This repo is a spike toward a simple Phoenix-based Slack clone for adapter devel
 
 ## Status
 
-Early spike. The app boots as a normal Phoenix/Postgres project and includes the first room, bridge, guide, agent, and ops screens. Runtime persistence still starts with `Jido.Messaging.Persistence.ETS`; a Postgres persistence adapter for `jido_messaging` is the next major milestone.
+Early spike. The app boots as a normal Phoenix/Postgres project and includes the first room, bridge, guide, agent, ops, and Filament-backed timeline screens. Runtime persistence still starts with `Jido.Messaging.Persistence.ETS`; a Postgres persistence adapter for `jido_messaging` is the next major milestone.
 
 ## Setup
 
@@ -63,7 +63,7 @@ The intended flow is:
 
 - `/rooms` - internal shared rooms
 - `/rooms/new` - guided room creation
-- `/rooms/:id` - room timeline and room state
+- `/rooms/:id` - Filament-backed room timeline and room state
 - `/rooms/:id/bridges` - bind external adapter rooms to a room
 - `/bridges` - configured adapter bridges
 - `/bridges/new` - adapter picker and bridge creation
@@ -76,8 +76,8 @@ The intended flow is:
 ## Next Milestones
 
 1. Implement `JidoChatUI.Messaging.Persistence.Postgres`.
-2. Replace placeholder room timeline with a Filament observable timeline.
+2. Hydrate the Filament timeline from `jido_messaging` persistence and delivery events.
 3. Wire bridge configs into `JidoChatUI.Messaging.put_bridge_config/1`.
 4. Add generic webhook route through `Jido.Messaging.WebhookPlug`.
-5. Add outbound composer and route selection.
+5. Add outbound route selection for composer messages.
 6. Add delivery attempts, dead letters, and signal stream UI.
