@@ -68,7 +68,12 @@ defmodule JidoChatUIWeb.Layouts do
       </div>
     </header>
 
-    <div class="grid min-h-[calc(100vh-4rem)] grid-cols-[7.25rem_minmax(0,1fr)] md:grid-cols-[9rem_minmax(0,1fr)] max-[520px]:grid-cols-1">
+    <div class={[
+      "grid min-h-[calc(100vh-4rem)]",
+      @current_scope &&
+        "grid-cols-[7.25rem_minmax(0,1fr)] md:grid-cols-[9rem_minmax(0,1fr)] max-[520px]:grid-cols-1",
+      !@current_scope && "grid-cols-1"
+    ]}>
       <aside
         :if={@current_scope}
         class="border-r border-base-300 bg-base-200/40 max-[520px]:border-b max-[520px]:border-r-0"
