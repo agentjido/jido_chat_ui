@@ -8,7 +8,10 @@ defmodule JidoChatUIWeb.RoomLive.Index do
     ~H"""
     <Layouts.app flash={@flash} current_scope={@current_scope}>
       <.header>
-        Listing Rooms
+        Rooms
+        <:subtitle>
+          Use one focused lab room per adapter, then add a shared room after the bridge works.
+        </:subtitle>
         <:actions>
           <.button variant="primary" navigate={~p"/rooms/new"}>
             <.icon name="hero-plus" /> New Room
@@ -16,30 +19,36 @@ defmodule JidoChatUIWeb.RoomLive.Index do
         </:actions>
       </.header>
 
-      <.table
-        id="rooms"
-        rows={@streams.rooms}
-        row_click={fn {_id, room} -> JS.navigate(~p"/rooms/#{room}") end}
-      >
-        <:col :let={{_id, room}} label="Name">{room.name}</:col>
-        <:col :let={{_id, room}} label="Description">{room.description}</:col>
-        <:col :let={{_id, room}} label="Status">{room.status}</:col>
-        <:col :let={{_id, room}} label="Metadata">{inspect(room.metadata)}</:col>
-        <:action :let={{_id, room}}>
-          <div class="sr-only">
-            <.link navigate={~p"/rooms/#{room}"}>Show</.link>
-          </div>
-          <.link navigate={~p"/rooms/#{room}/edit"}>Edit</.link>
-        </:action>
-        <:action :let={{id, room}}>
-          <.link
-            phx-click={JS.push("delete", value: %{id: room.id}) |> hide("##{id}")}
-            data-confirm="Are you sure?"
-          >
-            Delete
+      <div id="rooms" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <article
+          :for={{id, room} <- @streams.rooms}
+          id={id}
+          class="rounded-lg border border-base-300 bg-base-100 p-4"
+        >
+          <.link navigate={~p"/rooms/#{room}"} class="block hover:opacity-80">
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="truncate font-semibold"># {room.name}</h2>
+                <p class="mt-1 line-clamp-2 text-sm opacity-70">{room.description}</p>
+              </div>
+              <span class="badge">{room.status}</span>
+            </div>
           </.link>
-        </:action>
-      </.table>
+
+          <div class="mt-4 flex items-center justify-between gap-3 border-t border-base-300 pt-3 text-sm">
+            <span class="truncate opacity-60">{inspect(room.metadata || %{})}</span>
+            <div class="flex shrink-0 gap-3">
+              <.link navigate={~p"/rooms/#{room}/edit"}>Edit</.link>
+              <.link
+                phx-click={JS.push("delete", value: %{id: room.id}) |> hide("##{id}")}
+                data-confirm="Are you sure?"
+              >
+                Delete
+              </.link>
+            </div>
+          </div>
+        </article>
+      </div>
     </Layouts.app>
     """
   end

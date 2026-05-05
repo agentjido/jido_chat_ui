@@ -26,9 +26,15 @@ defmodule JidoChatUIWeb.Router do
       on_mount: [{JidoChatUIWeb.UserAuth, :mount_current_scope}] do
       live "/guides", GuideLive, :index
       live "/guides/getting-started", GuideLive, :getting_started
+      live "/guides/onboarding-scope", GuideLive, :onboarding_scope
+      live "/guides/configuration", GuideLive, :configuration
       live "/guides/rooms", GuideLive, :rooms
       live "/guides/bridges", GuideLive, :bridges
       live "/guides/agents", GuideLive, :agents
+      live "/guides/jido-messaging", GuideLive, :jido_messaging
+      live "/guides/building-a-new-adapter", GuideLive, :new_adapter
+      live "/guides/adapters", GuideLive, :adapters
+      live "/guides/adapters/:id", GuideLive, :adapter
       live "/guides/signal", GuideLive, :signal
     end
   end

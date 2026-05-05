@@ -2,6 +2,7 @@ defmodule JidoChatUI.ChatTest do
   use JidoChatUI.DataCase
 
   alias JidoChatUI.Chat
+  alias JidoChatUI.Messaging
 
   describe "rooms" do
     alias JidoChatUI.Chat.Room
@@ -158,6 +159,32 @@ defmodule JidoChatUI.ChatTest do
       assert room_bridge.external_room_id == "some external_room_id"
       assert room_bridge.external_thread_id == "some external_thread_id"
       assert room_bridge.user_id == scope.user.id
+    end
+
+    test "create_room_bridge/2 mirrors active topology into jido_messaging" do
+      scope = user_scope_fixture()
+      room = room_fixture(scope, %{status: "active"})
+      bridge = bridge_fixture(scope, %{adapter: "github", status: "active"})
+
+      assert {:ok, %RoomBridge{}} =
+               Chat.create_room_bridge(scope, %{
+                 bridge_id: bridge.id,
+                 status: "active",
+                 metadata: %{},
+                 room_id: room.id,
+                 external_room_id: "agentjido/jido_chat_ui#1",
+                 external_thread_id: nil
+               })
+
+      assert {:ok, [binding]} = Messaging.list_room_bindings(to_string(room.id))
+      assert binding.channel == :github
+      assert binding.bridge_id == "ui_bridge:#{bridge.id}"
+      assert binding.external_room_id == "agentjido/jido_chat_ui#1"
+      assert binding.enabled
+
+      assert {:ok, bridge_config} = Messaging.get_bridge_config("ui_bridge:#{bridge.id}")
+      assert bridge_config.adapter_module == Jido.Chat.GitHub.Adapter
+      assert bridge_config.enabled
     end
 
     test "create_room_bridge/2 with invalid data returns error changeset" do

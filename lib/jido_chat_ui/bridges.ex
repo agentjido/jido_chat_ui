@@ -8,6 +8,7 @@ defmodule JidoChatUI.Bridges do
 
   alias JidoChatUI.Bridges.Bridge
   alias JidoChatUI.Accounts.Scope
+  alias JidoChatUI.Messaging.Sync
 
   @doc """
   Subscribes to scoped notifications about any bridge changes.
@@ -88,6 +89,7 @@ defmodule JidoChatUI.Bridges do
            %Bridge{}
            |> Bridge.changeset(attrs, scope)
            |> Repo.insert() do
+      Sync.log_sync_result("bridge create", Sync.sync_bridge(bridge))
       broadcast_bridge(scope, {:created, bridge})
       {:ok, bridge}
     end
@@ -112,6 +114,7 @@ defmodule JidoChatUI.Bridges do
            bridge
            |> Bridge.changeset(attrs, scope)
            |> Repo.update() do
+      Sync.log_sync_result("bridge update", Sync.sync_bridge(bridge))
       broadcast_bridge(scope, {:updated, bridge})
       {:ok, bridge}
     end
@@ -134,6 +137,7 @@ defmodule JidoChatUI.Bridges do
 
     with {:ok, bridge = %Bridge{}} <-
            Repo.delete(bridge) do
+      Sync.log_sync_result("bridge delete", Sync.delete_bridge(bridge))
       broadcast_bridge(scope, {:deleted, bridge})
       {:ok, bridge}
     end

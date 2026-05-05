@@ -73,6 +73,7 @@ defmodule JidoChatUIWeb.BridgeLiveTest do
         |> render_change()
 
       assert html =~ "Adapter config"
+      assert html =~ "Setup guide"
       assert html =~ "Owner/repo"
       assert html =~ "Token env"
 

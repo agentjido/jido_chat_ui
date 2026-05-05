@@ -8,6 +8,7 @@ defmodule JidoChatUI.Chat do
 
   alias JidoChatUI.Chat.{Room, RoomBridge}
   alias JidoChatUI.Accounts.Scope
+  alias JidoChatUI.Messaging.Sync
 
   @doc """
   Subscribes to scoped notifications about any room changes.
@@ -41,7 +42,10 @@ defmodule JidoChatUI.Chat do
 
   """
   def list_rooms(%Scope{} = scope) do
-    Repo.all_by(Room, user_id: scope.user.id)
+    Room
+    |> where([room], room.user_id == ^scope.user.id)
+    |> order_by([room], asc: room.inserted_at, asc: room.id)
+    |> Repo.all()
   end
 
   @doc """
@@ -79,6 +83,7 @@ defmodule JidoChatUI.Chat do
            %Room{}
            |> Room.changeset(attrs, scope)
            |> Repo.insert() do
+      Sync.log_sync_result("room create", Sync.sync_room(room))
       broadcast_room(scope, {:created, room})
       {:ok, room}
     end
@@ -103,6 +108,7 @@ defmodule JidoChatUI.Chat do
            room
            |> Room.changeset(attrs, scope)
            |> Repo.update() do
+      Sync.log_sync_result("room update", Sync.sync_room(room))
       broadcast_room(scope, {:updated, room})
       {:ok, room}
     end
@@ -125,6 +131,7 @@ defmodule JidoChatUI.Chat do
 
     with {:ok, room = %Room{}} <-
            Repo.delete(room) do
+      Sync.log_sync_result("room delete", Sync.delete_room(room))
       broadcast_room(scope, {:deleted, room})
       {:ok, room}
     end
@@ -228,6 +235,7 @@ defmodule JidoChatUI.Chat do
            %RoomBridge{}
            |> RoomBridge.changeset(attrs, scope)
            |> Repo.insert() do
+      Sync.log_sync_result("room bridge create", Sync.sync_room_bridge(room_bridge))
       broadcast_room_bridge(scope, {:created, room_bridge})
       {:ok, room_bridge}
     end
@@ -247,11 +255,13 @@ defmodule JidoChatUI.Chat do
   """
   def update_room_bridge(%Scope{} = scope, %RoomBridge{} = room_bridge, attrs) do
     true = room_bridge.user_id == scope.user.id
+    Sync.log_sync_result("room bridge replace", Sync.delete_room_binding(room_bridge))
 
     with {:ok, room_bridge = %RoomBridge{}} <-
            room_bridge
            |> RoomBridge.changeset(attrs, scope)
            |> Repo.update() do
+      Sync.log_sync_result("room bridge update", Sync.sync_room_bridge(room_bridge))
       broadcast_room_bridge(scope, {:updated, room_bridge})
       {:ok, room_bridge}
     end
@@ -271,6 +281,7 @@ defmodule JidoChatUI.Chat do
   """
   def delete_room_bridge(%Scope{} = scope, %RoomBridge{} = room_bridge) do
     true = room_bridge.user_id == scope.user.id
+    Sync.log_sync_result("room bridge delete", Sync.delete_room_binding(room_bridge))
 
     with {:ok, room_bridge = %RoomBridge{}} <-
            Repo.delete(room_bridge) do

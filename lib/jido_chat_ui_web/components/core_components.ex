@@ -314,8 +314,11 @@ defmodule JidoChatUIWeb.CoreComponents do
 
   def header(assigns) do
     ~H"""
-    <header class={[@actions != [] && "flex items-center justify-between gap-6", "pb-4"]}>
-      <div>
+    <header class={[
+      @actions != [] && "flex flex-wrap items-start justify-between gap-3 sm:gap-6",
+      "pb-4"
+    ]}>
+      <div class="min-w-0">
         <h1 class="text-lg font-semibold leading-8">
           {render_slot(@inner_block)}
         </h1>
@@ -323,7 +326,7 @@ defmodule JidoChatUIWeb.CoreComponents do
           {render_slot(@subtitle)}
         </p>
       </div>
-      <div class="flex-none">{render_slot(@actions)}</div>
+      <div class="flex flex-wrap gap-2">{render_slot(@actions)}</div>
     </header>
     """
   end

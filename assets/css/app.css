@@ -102,4 +102,112 @@
 /* Make LiveView wrapper divs transparent for layout */
 [data-phx-session], [data-phx-teleported-src] { display: contents }
 
+@keyframes adapter-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.45;
+    transform: scale(0.72);
+  }
+}
+
+.adapter-pulse {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  animation: adapter-pulse 1.4s ease-in-out infinite;
+}
+
+.adapter-pulse-connected {
+  background: var(--color-success);
+  box-shadow: 0 0 0 0.18rem color-mix(in oklch, var(--color-success) 20%, transparent);
+}
+
+.adapter-pulse-needs-config {
+  background: var(--color-warning);
+  box-shadow: 0 0 0 0.18rem color-mix(in oklch, var(--color-warning) 20%, transparent);
+}
+
+.adapter-pulse-unavailable {
+  background: var(--color-error);
+  box-shadow: 0 0 0 0.18rem color-mix(in oklch, var(--color-error) 20%, transparent);
+}
+
+.jido-docs {
+  line-height: 1.7;
+}
+
+.jido-docs h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+.jido-docs h2 {
+  border-top: 1px solid var(--color-base-300);
+  font-size: 1.125rem;
+  font-weight: 700;
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+}
+
+.jido-docs h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-top: 1.25rem;
+}
+
+.jido-docs p,
+.jido-docs ul,
+.jido-docs ol,
+.jido-docs pre {
+  margin-top: 0.85rem;
+}
+
+.jido-docs ul,
+.jido-docs ol {
+  padding-left: 1.25rem;
+}
+
+.jido-docs ul {
+  list-style: disc;
+}
+
+.jido-docs ol {
+  list-style: decimal;
+}
+
+.jido-docs code {
+  background: var(--color-base-200);
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.25rem;
+  font-size: 0.875em;
+  padding: 0.08rem 0.25rem;
+}
+
+.jido-docs pre {
+  background: var(--color-base-200);
+  border: 1px solid var(--color-base-300);
+  border-radius: 0.5rem;
+  overflow-x: auto;
+  padding: 1rem;
+}
+
+.jido-docs pre code {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.jido-docs a {
+  color: var(--color-info);
+  text-decoration: underline;
+  text-underline-offset: 0.18rem;
+}
+
 /* This file is for your main application CSS */

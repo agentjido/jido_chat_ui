@@ -113,6 +113,21 @@ defmodule JidoChatUI.Adapters do
     }
   ]
 
+  @runtime_requirements %{
+    "github" => [["GITHUB_TOKEN"]],
+    "slack" => [["SLACK_BOT_TOKEN"]],
+    "telegram" => [["TELEGRAM_BOT_TOKEN"]],
+    "discord" => [["DISCORD_BOT_TOKEN"]],
+    "mattermost" => [
+      ["MATTERMOST_URL", "MATTERMOST_TOKEN"],
+      ["MATTERMOST_BASE_URL", "MATTERMOST_TOKEN"],
+      ["MATTERMOST_URL", "MATTERMOST_BOT_TOKEN"],
+      ["MATTERMOST_BASE_URL", "MATTERMOST_BOT_TOKEN"]
+    ],
+    "x" => [["X_CONSUMER_KEY", "X_CONSUMER_SECRET", "X_ACCESS_TOKEN", "X_ACCESS_TOKEN_SECRET"]],
+    "signal" => [["SIGNAL_ACCOUNT", "SIGNAL_RPC_ENDPOINT"]]
+  }
+
   def bundled, do: Enum.map(@bundled, &with_load_status/1)
   def optional, do: Enum.map(@optional, &with_load_status/1)
   def all, do: bundled() ++ optional()
@@ -126,7 +141,73 @@ defmodule JidoChatUI.Adapters do
     Enum.map(bundled(), &{&1.name, &1.id})
   end
 
+  def health_statuses(env_fun \\ &System.get_env/1) do
+    Enum.map(all(), &health_status(&1, env_fun))
+  end
+
+  def health_status(adapter, env_fun \\ &System.get_env/1) do
+    requirements = Map.get(@runtime_requirements, adapter.id, [])
+    missing_env = missing_env(requirements, env_fun)
+
+    status =
+      cond do
+        !adapter.loaded? -> :unavailable
+        missing_env == [] -> :connected
+        true -> :needs_config
+      end
+
+    adapter
+    |> Map.take([:id, :name, :loaded?])
+    |> Map.merge(%{
+      short_name: short_name(adapter.id),
+      status: status,
+      missing_env: missing_env,
+      title: health_title(adapter.name, status, missing_env)
+    })
+  end
+
   defp with_load_status(adapter) do
     Map.put(adapter, :loaded?, Code.ensure_loaded?(adapter.module))
   end
+
+  defp missing_env([], _env_fun), do: []
+
+  defp missing_env(requirement_groups, env_fun) do
+    configured_group =
+      Enum.find(requirement_groups, fn group ->
+        Enum.all?(group, &present_env?(&1, env_fun))
+      end)
+
+    if configured_group do
+      []
+    else
+      requirement_groups
+      |> Enum.min_by(&length/1)
+      |> Enum.reject(&present_env?(&1, env_fun))
+    end
+  end
+
+  defp present_env?(key, env_fun) do
+    key
+    |> env_fun.()
+    |> present?()
+  end
+
+  defp present?(value) when is_binary(value), do: String.trim(value) != ""
+  defp present?(_value), do: false
+
+  defp short_name("github"), do: "GH"
+  defp short_name("telegram"), do: "TG"
+  defp short_name("discord"), do: "DC"
+  defp short_name("mattermost"), do: "MM"
+  defp short_name("x"), do: "X"
+  defp short_name("signal"), do: "SG"
+  defp short_name(id), do: id |> String.slice(0, 2) |> String.upcase()
+
+  defp health_title(name, :connected, _missing_env), do: "#{name}: connected"
+
+  defp health_title(name, :needs_config, missing_env),
+    do: "#{name}: missing #{Enum.join(missing_env, ", ")}"
+
+  defp health_title(name, :unavailable, _missing_env), do: "#{name}: package unavailable"
 end

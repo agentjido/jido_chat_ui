@@ -5,6 +5,12 @@ config :bcrypt_elixir, :log_rounds, 1
 
 config :jido_chat_ui, JidoChatUI.Mailer, adapter: Swoosh.Adapters.Test
 
+# Avoid bridge-supervisor reconcile tasks crossing SQL sandbox owner lifetimes.
+# Dedicated persistence tests exercise the same Postgres adapter directly.
+config :jido_chat_ui, :messaging_sync_mode, :direct_persistence
+config :jido_chat_ui, :start_bridge_reconciler, false
+config :jido_chat_ui, :start_agent_responder, false
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

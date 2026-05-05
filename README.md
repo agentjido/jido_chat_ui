@@ -69,9 +69,20 @@ The intended flow is:
 - `/bridges/new` - adapter picker and bridge creation
 - `/agents` - available Jidoka agents
 - `/ops` - runtime visibility
-- `/guides` - setup guides
+- `/guides` - interactive setup docs backed by repo Markdown
+- `/guides/adapters` - adapter status and provider-specific setup guides
 - `/guides/signal` - optional Signal setup
 - `/webhooks/:bridge_id` - planned generic webhook endpoint
+
+## Guide Docs
+
+Repo Markdown in `docs/` is the source of truth. The Phoenix guide pages render those files in-app and add live adapter status, missing env vars, and next-step links around them.
+
+Start with:
+
+- `/guides/getting-started`
+- `/guides/configuration`
+- `/guides/adapters`
 
 ## Next Milestones
 

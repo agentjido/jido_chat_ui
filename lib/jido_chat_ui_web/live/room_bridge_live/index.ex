@@ -55,6 +55,12 @@ defmodule JidoChatUIWeb.RoomBridgeLive.Index do
           <p class="mt-1 text-sm opacity-70">
             Pick a configured adapter bridge and tell Jido which external room it maps to.
           </p>
+          <p class="mt-2 text-sm">
+            <.link navigate={~p"/guides/adapters"} class="link">
+              Open adapter setup guides
+            </.link>
+            before binding if you need provider-specific IDs.
+          </p>
           <.form
             for={@form}
             id="room-bridge-form"

@@ -26,10 +26,70 @@ import {hooks as colocatedHooks} from "phoenix-colocated/jido_chat_ui"
 import topbar from "../vendor/topbar"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
+const Hooks = {
+  ChatTimeline: {
+    mounted() {
+      this.shouldStick = true
+      this.scrollToBottom()
+    },
+    beforeUpdate() {
+      this.shouldStick = this.isNearBottom()
+    },
+    updated() {
+      if (this.shouldStick) this.scrollToBottom()
+    },
+    isNearBottom() {
+      const distance = this.el.scrollHeight - this.el.scrollTop - this.el.clientHeight
+      return distance < 96
+    },
+    scrollToBottom() {
+      requestAnimationFrame(() => {
+        this.el.scrollTop = this.el.scrollHeight
+      })
+    },
+  },
+  ChatComposer: {
+    mounted() {
+      this.resize = () => {
+        this.el.style.height = "auto"
+        this.el.style.height = `${Math.min(this.el.scrollHeight, 180)}px`
+      }
+
+      this.submitOnEnter = event => {
+        if (
+          event.key !== "Enter" ||
+          event.shiftKey ||
+          event.isComposing ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.altKey
+        ) {
+          return
+        }
+
+        if (this.el.value.trim() === "") return
+
+        event.preventDefault()
+        this.el.form?.requestSubmit()
+      }
+
+      this.el.addEventListener("input", this.resize)
+      this.el.addEventListener("keydown", this.submitOnEnter)
+      this.resize()
+
+      requestAnimationFrame(() => this.el.focus())
+    },
+    destroyed() {
+      this.el.removeEventListener("input", this.resize)
+      this.el.removeEventListener("keydown", this.submitOnEnter)
+    },
+  },
+}
+
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks},
+  hooks: {...colocatedHooks, ...Hooks},
 })
 
 // Show progress bar on live navigation and form submits
@@ -80,4 +140,3 @@ if (process.env.NODE_ENV === "development") {
     window.liveReloader = reloader
   })
 }
-

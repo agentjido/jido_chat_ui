@@ -14,6 +14,7 @@ defmodule JidoChatUIWeb.RoomBridgeLiveTest do
     {:ok, room_bridge_live, html} = live(conn, ~p"/rooms/#{room}/bridges")
 
     assert html =~ "Add a bridge"
+    assert html =~ "Open adapter setup guides"
 
     assert {:ok, room_bridge_live, _html} =
              room_bridge_live

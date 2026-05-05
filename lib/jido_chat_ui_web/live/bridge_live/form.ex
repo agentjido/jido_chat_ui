@@ -25,6 +25,21 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
         <.input field={@form[:status]} type="text" label="Status" />
 
         <section
+          :if={@adapter_guide}
+          class="my-4 flex items-start justify-between gap-4 rounded-lg border border-base-300 bg-base-100 p-4"
+        >
+          <div>
+            <h2 class="text-sm font-semibold">Setup guide</h2>
+            <p class="mt-1 text-sm opacity-70">
+              {@adapter_guide.summary}
+            </p>
+          </div>
+          <.link navigate={@adapter_guide.route} class="btn btn-sm btn-outline">
+            Open
+          </.link>
+        </section>
+
+        <section
           :if={@config_fields != []}
           class="my-4 rounded-lg border border-base-300 bg-base-200/40 p-4"
         >
@@ -61,6 +76,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
      |> assign(:return_to, return_to(params["return_to"]))
      |> assign(:adapter_options, JidoChatUI.Adapters.select_options())
      |> assign(:config_fields, [])
+     |> assign(:adapter_guide, nil)
      |> apply_action(socket.assigns.live_action, params)}
   end
 
@@ -74,6 +90,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
     |> assign(:page_title, "Edit Bridge")
     |> assign(:bridge, bridge)
     |> assign(:config_fields, JidoChatUI.Adapters.config_fields(bridge.adapter))
+    |> assign(:adapter_guide, JidoChatUI.Docs.adapter_guide(bridge.adapter))
     |> assign(:form, to_form(Bridges.change_bridge(socket.assigns.current_scope, bridge)))
   end
 
@@ -84,6 +101,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
     |> assign(:page_title, "New Bridge")
     |> assign(:bridge, bridge)
     |> assign(:config_fields, [])
+    |> assign(:adapter_guide, nil)
     |> assign(:form, to_form(Bridges.change_bridge(socket.assigns.current_scope, bridge)))
   end
 
@@ -97,6 +115,7 @@ defmodule JidoChatUIWeb.BridgeLive.Form do
     {:noreply,
      socket
      |> assign(:config_fields, JidoChatUI.Adapters.config_fields(adapter))
+     |> assign(:adapter_guide, JidoChatUI.Docs.adapter_guide(adapter || ""))
      |> assign(form: to_form(changeset, action: :validate))}
   end
 

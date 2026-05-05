@@ -24,19 +24,23 @@ defmodule JidoChatUIWeb.Components.RoomTimeline do
 
       ~F"""
       <div>
-        <div class="flex items-start justify-between gap-4 border-b border-base-300 px-4 py-3">
-          <div>
+        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-base-300 px-4 py-3">
+          <div class="min-w-0">
             <h2 class="font-semibold">Timeline</h2>
             <p class="text-sm opacity-70">Filament observable timeline for {state.room_name}</p>
           </div>
-          <div class="flex gap-1">
+          <div class="flex flex-wrap justify-end gap-1">
             <button type="button" class={filter_class(filter, "all")} on_click={fn -> set_filter.("all") end}>All</button>
             <button type="button" class={filter_class(filter, "ui")} on_click={fn -> set_filter.("ui") end}>UI</button>
             <button type="button" class={filter_class(filter, "adapter")} on_click={fn -> set_filter.("adapter") end}>Adapters</button>
           </div>
         </div>
 
-        <div class="max-h-[28rem] space-y-3 overflow-y-auto p-4">
+        <div
+          id={"room-timeline-scroll-#{room_id}"}
+          phx-hook="ChatTimeline"
+          class="max-h-[32rem] space-y-3 overflow-y-auto p-4 scroll-smooth"
+        >
           {if messages == [] do}
             <div class="rounded-lg border border-dashed border-base-300 p-6 text-sm opacity-70">
               No messages match this filter.
@@ -46,9 +50,9 @@ defmodule JidoChatUIWeb.Components.RoomTimeline do
           {for message <- messages do}
             <article class={message_class(message)} data-message-id={message.id}>
               <div class="flex items-start justify-between gap-3">
-                <div>
-                  <p class="text-sm font-medium">{message.author}</p>
-                  <p class="mt-1 whitespace-pre-wrap text-sm opacity-85">{message.body}</p>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium">{message.author}</p>
+                  <p class="mt-1 whitespace-pre-wrap break-words text-sm opacity-85">{message.body}</p>
                 </div>
                 <span class="shrink-0 rounded border border-base-300 px-2 py-0.5 text-xs opacity-70">
                   {message.status}
@@ -76,10 +80,12 @@ defmodule JidoChatUIWeb.Components.RoomTimeline do
     defp filter_class(_current, _target), do: "btn btn-xs btn-ghost"
 
     defp message_class(%{source: "ui"}),
-      do: "rounded-lg border border-primary/20 bg-primary/5 p-3"
+      do: "overflow-hidden rounded-lg border border-primary/20 bg-primary/5 p-3"
 
-    defp message_class(%{source: "system"}), do: "rounded-lg bg-base-200 p-3"
-    defp message_class(_message), do: "rounded-lg border border-base-300 bg-base-100 p-3"
+    defp message_class(%{source: "system"}), do: "overflow-hidden rounded-lg bg-base-200 p-3"
+
+    defp message_class(_message),
+      do: "overflow-hidden rounded-lg border border-base-300 bg-base-100 p-3"
 
     defp format_time(%DateTime{} = time) do
       Calendar.strftime(time, "%H:%M:%S UTC")
