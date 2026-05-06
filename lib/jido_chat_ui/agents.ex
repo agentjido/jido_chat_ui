@@ -250,7 +250,7 @@ defmodule JidoChatUI.Agents do
 
     bridge_names =
       bridges
-      |> Enum.map(& &1.adapter)
+      |> Enum.map(&bridge_adapter/1)
       |> Enum.uniq()
       |> Enum.sort()
       |> Enum.join(", ")
@@ -326,6 +326,17 @@ defmodule JidoChatUI.Agents do
   defp active_bridge_count(bridges) do
     Enum.count(bridges, &(&1.status == "active"))
   end
+
+  defp bridge_adapter(%{adapter: adapter}) when is_binary(adapter), do: adapter
+
+  defp bridge_adapter(%{metadata: metadata, bridge_id: bridge_id}) do
+    case map_value(metadata || %{}, :adapter) || map_value(metadata || %{}, :lab_adapter) do
+      nil -> "bridge:#{bridge_id}"
+      adapter -> to_string(adapter)
+    end
+  end
+
+  defp bridge_adapter(_bridge), do: "unknown"
 
   defp participant_source(participant) do
     participant.metadata

@@ -12,6 +12,7 @@ defmodule JidoChatUI.Agents.RoomResponder do
 
   alias Jido.Messaging.Message
   alias JidoChatUI.Accounts.{Scope, User}
+  alias JidoChatUI.Bridges.Bridge
   alias JidoChatUI.Chat.Room
   alias JidoChatUI.Messaging.Participants
   alias JidoChatUI.{Agents, Chat, Messaging, Repo}
@@ -69,6 +70,7 @@ defmodule JidoChatUI.Agents.RoomResponder do
          true <- adapter_message?(message),
          false <- agent_message?(message),
          false <- assistant_echo?(message),
+         false <- ignored_adapter_sender?(message),
          %Room{} = room <- Repo.get(Room, data_value(data, :room_id)) do
       settings = Agents.room_settings(room)
       settings["auto_reply_adapter_messages"] || trigger_text?(message_text(message))
@@ -89,19 +91,23 @@ defmodule JidoChatUI.Agents.RoomResponder do
          {:ok, _agent_pid} <- Agents.ensure_started(@agent_id),
          {:ok, assistant} <- Participants.ensure_room_assistant_participant(),
          {:ok, messages} <- Messaging.list_messages(to_string(room.id), limit: 20),
-         body <-
-           reply_body(
-             room,
-             source_message,
-             messages,
-             Chat.list_room_bridges_for_room(scope, room.id)
-           ),
-         {:ok, reply_message} <- save_reply(room, assistant, source_message, body) do
+         settings <- Agents.room_settings(room),
+         bridges <- Chat.list_room_bridges_for_room(scope, room.id),
+         {:ok, reply} <-
+           Agents.compose_room_reply(%{
+             room: room,
+             participants: Participants.list_for_room(room, user),
+             bridges: bridges,
+             messages: messages,
+             intent: "adapter_auto_reply",
+             mode: settings["agent_mode"]
+           }),
+         {:ok, reply_message} <- save_reply(room, assistant, source_message, reply) do
       _ = Participants.add_message_to_room_server(room, reply_message)
 
       delivery_result =
-        if Agents.room_settings(room)["relay_agent_replies"] do
-          Messaging.route_outbound(to_string(room.id), body)
+        if settings["relay_agent_replies"] do
+          Messaging.route_outbound(to_string(room.id), reply.body)
         else
           :agent_local_only
         end
@@ -127,42 +133,27 @@ defmodule JidoChatUI.Agents.RoomResponder do
       Logger.warning("Room Assistant auto-reply crashed: #{inspect({kind, reason})}")
   end
 
-  defp save_reply(room, assistant, source_message, body) do
+  defp save_reply(room, assistant, source_message, reply) do
     metadata = source_message.metadata || %{}
 
     Messaging.save_message(%{
       room_id: to_string(room.id),
       sender_id: assistant.id,
       role: :assistant,
-      content: [%{type: :text, text: body}],
+      content: [%{type: :text, text: reply.body}],
       status: :sent,
       metadata: %{
         "author" => Participants.participant_name(assistant),
         "participant_id" => assistant.id,
         "source" => "agent",
-        "agent_mode" => "auto_reply",
-        "intent" => "adapter_auto_reply",
+        "agent_mode" => to_string(reply.mode),
+        "intent" => reply.intent,
         "relay_agent_replies" => Agents.room_settings(room)["relay_agent_replies"],
         "in_reply_to_message_id" => source_message.id,
         "source_channel" => metadata_value(metadata, :channel),
         "source_bridge_id" => metadata_value(metadata, :bridge_id)
       }
     })
-  end
-
-  defp reply_body(room, source_message, messages, bridges) do
-    source = source_message.metadata || %{}
-    source_channel = source |> metadata_value(:channel) |> to_string()
-    source_text = source_message |> message_text() |> one_line() |> String.slice(0, 180)
-    bridge_count = Enum.count(bridges, &(&1.status == "active"))
-
-    [
-      "Room Assistant:",
-      "I received your #{source_channel} message in #{room.name}: \"#{source_text}\".",
-      "It came through the adapter bridge, was persisted by jido_messaging, and is now being relayed back through the active bridge.",
-      "#{length(messages)} recent messages are visible to the room runtime; #{bridge_count} bridge(s) are active."
-    ]
-    |> Enum.join(" ")
   end
 
   defp adapter_message?(%Message{metadata: metadata}) when is_map(metadata) do
@@ -188,6 +179,83 @@ defmodule JidoChatUI.Agents.RoomResponder do
     |> String.starts_with?("room assistant:")
   end
 
+  defp ignored_adapter_sender?(%Message{metadata: metadata} = message) when is_map(metadata) do
+    bridge_id = metadata_value(metadata, :bridge_id)
+    channel = metadata_value(metadata, :channel)
+
+    with %Bridge{} = bridge <- bridge_for_runtime_id(bridge_id),
+         sender_id when is_binary(sender_id) <- sender_external_id(message, channel) do
+      sender_id in ignored_external_user_ids(bridge.config || %{})
+    else
+      _other -> false
+    end
+  end
+
+  defp ignored_adapter_sender?(_message), do: false
+
+  defp bridge_for_runtime_id("ui_bridge:" <> id) do
+    case Integer.parse(id) do
+      {bridge_id, ""} -> Repo.get(Bridge, bridge_id)
+      _other -> nil
+    end
+  end
+
+  defp bridge_for_runtime_id(_bridge_id), do: nil
+
+  defp sender_external_id(%Message{sender_id: sender_id}, channel) when is_binary(sender_id) do
+    with {:ok, participant} <- Messaging.get_participant(sender_id) do
+      metadata_value(participant.external_ids || %{}, channel)
+    else
+      _other -> nil
+    end
+  end
+
+  defp sender_external_id(_message, _channel), do: nil
+
+  defp ignored_external_user_ids(config) when is_map(config) do
+    config_values(config, "ignore_external_user_ids") ++
+      config_values(config, "ignore_bot_user_ids") ++
+      env_config_values(config, "bot_user_id_env")
+  end
+
+  defp ignored_external_user_ids(_config), do: []
+
+  defp config_values(config, key) do
+    config
+    |> metadata_value(key)
+    |> list_values()
+  end
+
+  defp env_config_values(config, key) do
+    config
+    |> metadata_value(key)
+    |> case do
+      env_key when is_binary(env_key) ->
+        env_key
+        |> System.get_env()
+        |> list_values()
+
+      _other ->
+        []
+    end
+  end
+
+  defp list_values(values) when is_list(values) do
+    values
+    |> Enum.map(&to_string/1)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp list_values(value) when is_binary(value) do
+    value
+    |> String.split(",", trim: true)
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  defp list_values(_value), do: []
+
   defp trigger_text?(text), do: Regex.match?(@trigger_pattern, text || "")
 
   defp message_id(%Message{id: id}) when is_binary(id), do: id
@@ -207,15 +275,14 @@ defmodule JidoChatUI.Agents.RoomResponder do
   defp message_text(%Message{content: content}) when is_binary(content), do: content
   defp message_text(_message), do: ""
 
-  defp one_line(text) do
-    text
-    |> to_string()
-    |> String.replace(~r/\\s+/, " ")
-    |> String.trim()
+  defp metadata_value(metadata, key) when is_map(metadata) and is_atom(key) do
+    Map.get(metadata, key) || Map.get(metadata, Atom.to_string(key))
   end
 
-  defp metadata_value(metadata, key) when is_map(metadata) do
-    Map.get(metadata, key) || Map.get(metadata, Atom.to_string(key))
+  defp metadata_value(metadata, key) when is_map(metadata) and is_binary(key) do
+    Map.get(metadata, key) || Map.get(metadata, String.to_existing_atom(key))
+  rescue
+    ArgumentError -> Map.get(metadata, key)
   end
 
   defp metadata_value(_metadata, _key), do: nil

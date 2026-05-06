@@ -10,6 +10,7 @@ config :jido_chat_ui, JidoChatUI.Mailer, adapter: Swoosh.Adapters.Test
 config :jido_chat_ui, :messaging_sync_mode, :direct_persistence
 config :jido_chat_ui, :start_bridge_reconciler, false
 config :jido_chat_ui, :start_agent_responder, false
+config :jido_chat_ui, :start_discord_gateway, false
 
 # Configure your database
 #

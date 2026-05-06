@@ -50,7 +50,7 @@ defmodule JidoChatUI.RoomTimeline do
           message.sender_id,
       body: text_content(message.content),
       source: metadata_value(metadata, :source) || metadata_value(metadata, :channel) || "ui",
-      status: message.status || :sent,
+      status: timeline_status(message.status, metadata),
       at: message.inserted_at || DateTime.utc_now(:second),
       metadata: metadata
     })
@@ -77,12 +77,7 @@ defmodule JidoChatUI.RoomTimeline do
   def handle_call({:post_message, attrs}, _from, state) do
     message = build_message(attrs)
 
-    state =
-      if Enum.any?(state.messages, &(&1.id == message.id)) do
-        state
-      else
-        %{state | messages: state.messages ++ [message]}
-      end
+    state = upsert_message(state, message)
 
     notify_observers(state)
 
@@ -193,6 +188,16 @@ defmodule JidoChatUI.RoomTimeline do
     Map.get(metadata, key) || Map.get(metadata, Atom.to_string(key))
   end
 
+  defp timeline_status(:delivered, metadata) do
+    case metadata_value(metadata, :delivered) do
+      count when is_integer(count) and count > 0 -> "delivered:#{count}"
+      count when is_binary(count) and count != "" -> "delivered:#{count}"
+      _other -> "delivered"
+    end
+  end
+
+  defp timeline_status(status, _metadata), do: status || :sent
+
   defp data_value(data, key) when is_map(data) do
     Map.get(data, key) || Map.get(data, Atom.to_string(key))
   end
@@ -202,14 +207,21 @@ defmodule JidoChatUI.RoomTimeline do
   defp same_room?(left, right), do: to_string(left) == to_string(right)
 
   defp maybe_append_messaging_message(%Message{} = message, state) do
-    if Enum.any?(state.messages, &(&1.id == message.id)) do
-      state
-    else
-      %{state | messages: state.messages ++ [from_messaging_message(message)]}
-    end
+    upsert_message(state, from_messaging_message(message))
   end
 
   defp maybe_append_messaging_message(_message, state), do: state
+
+  defp upsert_message(state, message) do
+    if Enum.any?(state.messages, &(&1.id == message.id)) do
+      %{state | messages: Enum.map(state.messages, &replace_message(&1, message))}
+    else
+      %{state | messages: state.messages ++ [message]}
+    end
+  end
+
+  defp replace_message(%{id: id}, %{id: id} = message), do: message
+  defp replace_message(existing, _message), do: existing
 
   defp next_id do
     System.unique_integer([:positive, :monotonic])

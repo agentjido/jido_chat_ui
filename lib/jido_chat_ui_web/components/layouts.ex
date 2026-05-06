@@ -46,7 +46,7 @@ defmodule JidoChatUIWeb.Layouts do
       <div class="flex flex-wrap items-center gap-2">
         <div class="min-w-0 flex-1 basis-full sm:basis-auto">
           <.link
-            navigate={~p"/rooms"}
+            navigate={~p"/setup"}
             class="flex w-fit max-w-full items-center gap-2 text-sm font-semibold"
           >
             <span class="grid size-8 place-items-center rounded bg-base-300">JC</span>
@@ -55,6 +55,9 @@ defmodule JidoChatUIWeb.Layouts do
         </div>
         <div class="min-w-0 flex-none">
           <ul class="flex flex-wrap items-center justify-start gap-1 sm:justify-end">
+            <li><.link navigate={~p"/setup"} class="btn btn-ghost btn-sm">Setup</.link></li>
+            <li><.link navigate={~p"/labs"} class="btn btn-ghost btn-sm">Labs</.link></li>
+            <li><.link navigate={~p"/rooms"} class="btn btn-ghost btn-sm">Rooms</.link></li>
             <li><.link navigate={~p"/bridges"} class="btn btn-ghost btn-sm">Bridges</.link></li>
             <li><.link navigate={~p"/agents"} class="btn btn-ghost btn-sm">Agents</.link></li>
             <li><.link navigate={~p"/ops"} class="btn btn-ghost btn-sm">Ops</.link></li>
@@ -112,16 +115,16 @@ defmodule JidoChatUIWeb.Layouts do
 
           <nav aria-label="Setup" class="space-y-1 border-t border-base-300 pt-4">
             <.link
-              navigate={~p"/guides/getting-started"}
+              navigate={~p"/setup"}
               class="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-base-200"
             >
               <.icon name="hero-map" class="size-4 opacity-60" /> Start
             </.link>
             <.link
-              navigate={~p"/guides/adapters"}
+              navigate={~p"/labs"}
               class="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-base-200"
             >
-              <.icon name="hero-puzzle-piece" class="size-4 opacity-60" /> Adapters
+              <.icon name="hero-puzzle-piece" class="size-4 opacity-60" /> Adapter Labs
             </.link>
             <.link
               navigate={~p"/guides/bridges"}

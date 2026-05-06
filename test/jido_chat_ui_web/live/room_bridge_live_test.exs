@@ -5,7 +5,7 @@ defmodule JidoChatUIWeb.RoomBridgeLiveTest do
   import JidoChatUI.ChatFixtures
   import Phoenix.LiveViewTest
 
-  setup :register_and_log_in_user
+  setup :workspace
 
   test "binds a configured bridge to a room with an active default", %{conn: conn, scope: scope} do
     room = room_fixture(scope)

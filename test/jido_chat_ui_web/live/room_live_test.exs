@@ -20,7 +20,7 @@ defmodule JidoChatUIWeb.RoomLiveTest do
   }
   @invalid_attrs %{name: nil, status: "draft", description: nil}
 
-  setup :register_and_log_in_user
+  setup :workspace
 
   defp create_room(%{scope: scope}) do
     room = room_fixture(scope)
@@ -134,6 +134,34 @@ defmodule JidoChatUIWeb.RoomLiveTest do
 
       assert {:ok, persisted_messages} = Messaging.list_messages(to_string(room.id))
       assert Enum.any?(persisted_messages, &text_content?(&1, "hello from live test"))
+
+      message = Enum.find(persisted_messages, &text_content?(&1, "hello from live test"))
+      assert message.metadata["route_decision"] == "no_routes"
+    end
+
+    test "message inspector shows persisted message details", %{conn: conn, room: room} do
+      {:ok, show_live, _html} = live(conn, ~p"/rooms/#{room}")
+
+      assert show_live
+             |> form("#timeline-composer-form", %{"body" => "inspect this message"})
+             |> render_submit()
+
+      assert {:ok, [message]} = Messaging.list_messages(to_string(room.id))
+
+      html =
+        show_live
+        |> form("form[phx-change=select_message]",
+          inspector: %{message_id: message.id}
+        )
+        |> render_change()
+
+      assert html =~ "Message inspector"
+      assert html =~ "Provider payload"
+      assert html =~ "Normalized message"
+      assert html =~ "Persisted record"
+      assert html =~ "Delivery"
+      assert html =~ message.id
+      assert html =~ "inspect this message"
     end
 
     test "assistant action posts an agent message", %{conn: conn, room: room} do

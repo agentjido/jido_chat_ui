@@ -57,6 +57,19 @@ defmodule JidoChatUIWeb.ConnCase do
   end
 
   @doc """
+  Setup helper that uses the local workbench workspace identity.
+
+      setup :workspace
+
+  This mirrors the public workbench routes: no user-facing login is required,
+  but existing schemas still receive a stable `user_id`.
+  """
+  def workspace(%{conn: conn}) do
+    scope = JidoChatUI.Workspace.scope!()
+    %{conn: conn, user: scope.user, scope: scope}
+  end
+
+  @doc """
   Logs the given `user` into the `conn`.
 
   It returns an updated `conn`.

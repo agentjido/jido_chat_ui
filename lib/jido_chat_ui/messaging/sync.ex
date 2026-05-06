@@ -27,6 +27,8 @@ defmodule JidoChatUI.Messaging.Sync do
 
   def sync_room_topology(%Room{} = room) do
     with {:ok, _room} <- sync_room(room) do
+      log_sync_result("room routing policy", sync_routing_policy(room))
+
       room
       |> room_bridges_for_room()
       |> Enum.each(fn room_bridge ->
@@ -74,6 +76,13 @@ defmodule JidoChatUI.Messaging.Sync do
 
   def delete_room(%Room{} = room) do
     Messaging.delete_room(room_id(room))
+  end
+
+  def sync_routing_policy(%Room{} = room) do
+    case routing_policy_attrs(room) do
+      nil -> :ok
+      attrs -> Messaging.put_routing_policy(room_id(room), attrs)
+    end
   end
 
   def delete_bridge(%Bridge{} = bridge) do
@@ -158,7 +167,54 @@ defmodule JidoChatUI.Messaging.Sync do
     })
   end
 
+  defp maybe_put_ingress(opts, "discord", config) do
+    opts
+    |> Map.put("ingress", %{
+      "mode" => string_config(config, "ingress_mode", "gateway"),
+      "source" => string_config(config, "ingress_source", "nostrum"),
+      "poll_interval_ms" => positive_integer_config(config, "poll_interval_ms", 250),
+      "max_backoff_ms" => positive_integer_config(config, "poll_max_backoff_ms", 5_000)
+    })
+    |> maybe_put_discord_event_names(config)
+  end
+
   defp maybe_put_ingress(opts, _adapter, _config), do: opts
+
+  defp maybe_put_discord_event_names(%{"ingress" => ingress} = opts, config) do
+    event_names =
+      config
+      |> Map.get("event_names")
+      |> case do
+        value when is_binary(value) ->
+          value
+          |> String.split(",", trim: true)
+          |> Enum.map(&String.trim/1)
+          |> Enum.reject(&(&1 == ""))
+
+        value when is_list(value) ->
+          value
+
+        _other ->
+          []
+      end
+
+    if event_names == [] do
+      opts
+    else
+      Map.put(opts, "ingress", Map.put(ingress, "event_names", event_names))
+    end
+  end
+
+  defp string_config(config, key, default) do
+    case Map.get(config, key) do
+      value when is_binary(value) ->
+        value = String.trim(value)
+        if value == "", do: default, else: value
+
+      _other ->
+        default
+    end
+  end
 
   defp positive_integer_config(config, key, default) do
     case Map.get(config, key) do
@@ -175,6 +231,78 @@ defmodule JidoChatUI.Messaging.Sync do
         default
     end
   end
+
+  defp routing_policy_attrs(%Room{metadata: metadata}) when is_map(metadata) do
+    metadata
+    |> metadata_value("routing_policy")
+    |> case do
+      policy when is_map(policy) ->
+        normalize_routing_policy_attrs(policy)
+
+      _other ->
+        metadata
+        |> metadata_value("jido_messaging")
+        |> case do
+          nested when is_map(nested) ->
+            case metadata_value(nested, "routing_policy") do
+              policy when is_map(policy) -> normalize_routing_policy_attrs(policy)
+              _other -> nil
+            end
+
+          _other ->
+            nil
+        end
+    end
+  end
+
+  defp routing_policy_attrs(_room), do: nil
+
+  defp normalize_routing_policy_attrs(policy) do
+    %{}
+    |> maybe_put_enum(
+      :delivery_mode,
+      metadata_value(policy, "delivery_mode"),
+      [:best_effort, :primary, :broadcast]
+    )
+    |> maybe_put_enum(
+      :failover_policy,
+      metadata_value(policy, "failover_policy"),
+      [:none, :next_available, :broadcast]
+    )
+    |> maybe_put_enum(
+      :dedupe_scope,
+      metadata_value(policy, "dedupe_scope"),
+      [:message_id, :thread, :room]
+    )
+    |> maybe_put_list(:fallback_order, metadata_value(policy, "fallback_order"))
+    |> maybe_put_map(:metadata, metadata_value(policy, "metadata"))
+  end
+
+  defp maybe_put_enum(acc, key, value, allowed) do
+    case normalize_enum(value, allowed) do
+      nil -> acc
+      normalized -> Map.put(acc, key, normalized)
+    end
+  end
+
+  defp normalize_enum(value, allowed) when is_atom(value) do
+    if value in allowed, do: value
+  end
+
+  defp normalize_enum(value, allowed) when is_binary(value) do
+    value = value |> String.trim() |> String.to_existing_atom()
+    if value in allowed, do: value
+  rescue
+    ArgumentError -> nil
+  end
+
+  defp normalize_enum(_value, _allowed), do: nil
+
+  defp maybe_put_list(acc, key, value) when is_list(value), do: Map.put(acc, key, value)
+  defp maybe_put_list(acc, _key, _value), do: acc
+
+  defp maybe_put_map(acc, key, value) when is_map(value), do: Map.put(acc, key, value)
+  defp maybe_put_map(acc, _key, _value), do: acc
 
   defp save_bridge_config(attrs) do
     case Application.get_env(:jido_chat_ui, :messaging_sync_mode, :runtime) do
@@ -265,6 +393,12 @@ defmodule JidoChatUI.Messaging.Sync do
   defp channel_for("slack"), do: :slack
   defp channel_for("telegram"), do: :telegram
   defp channel_for("x"), do: :x
+
+  defp metadata_value(metadata, key) when is_map(metadata) do
+    Map.get(metadata, key) || Map.get(metadata, to_string(key))
+  end
+
+  defp metadata_value(_metadata, _key), do: nil
 
   defp put_if_present(map, _key, nil), do: map
   defp put_if_present(map, _key, ""), do: map

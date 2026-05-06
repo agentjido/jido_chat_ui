@@ -24,6 +24,28 @@ defmodule JidoChatUIWeb.Router do
 
     live_session :current_scope,
       on_mount: [{JidoChatUIWeb.UserAuth, :mount_current_scope}] do
+      live "/setup", SetupLive, :index
+      live "/labs", LabLive.Index, :index
+      live "/labs/:adapter", LabLive.Show, :show
+
+      live "/rooms", RoomLive.Index, :index
+      live "/rooms/new", RoomLive.Form, :new
+      live "/rooms/:id", RoomLive.Show, :show
+      live "/rooms/:id/edit", RoomLive.Form, :edit
+      live "/rooms/:room_id/bridges", RoomBridgeLive.Index, :index
+
+      live "/bridges", BridgeLive.Index, :index
+      live "/bridges/new", BridgeLive.Form, :new
+      live "/bridges/:id", BridgeLive.Show, :show
+      live "/bridges/:id/edit", BridgeLive.Form, :edit
+
+      live "/agents", AgentLive.Index, :index
+      live "/agents/:id", AgentLive.Show, :show
+      live "/ops", OpsLive.Index, :index
+      live "/ops/signals", OpsLive.Index, :signals
+      live "/ops/deliveries", OpsLive.Index, :deliveries
+      live "/ops/dead-letters", OpsLive.Index, :dead_letters
+
       live "/guides", GuideLive, :index
       live "/guides/getting-started", GuideLive, :getting_started
       live "/guides/onboarding-scope", GuideLive, :onboarding_scope
@@ -61,50 +83,6 @@ defmodule JidoChatUIWeb.Router do
     end
   end
 
-  ## Authentication routes
-
-  scope "/", JidoChatUIWeb do
-    pipe_through [:browser, :redirect_if_user_is_authenticated]
-
-    get "/users/register", UserRegistrationController, :new
-    post "/users/register", UserRegistrationController, :create
-  end
-
-  scope "/", JidoChatUIWeb do
-    pipe_through [:browser, :require_authenticated_user]
-
-    live_session :require_authenticated_user,
-      on_mount: [{JidoChatUIWeb.UserAuth, :require_authenticated_user}] do
-      live "/rooms", RoomLive.Index, :index
-      live "/rooms/new", RoomLive.Form, :new
-      live "/rooms/:id", RoomLive.Show, :show
-      live "/rooms/:id/edit", RoomLive.Form, :edit
-      live "/rooms/:room_id/bridges", RoomBridgeLive.Index, :index
-
-      live "/bridges", BridgeLive.Index, :index
-      live "/bridges/new", BridgeLive.Form, :new
-      live "/bridges/:id", BridgeLive.Show, :show
-      live "/bridges/:id/edit", BridgeLive.Form, :edit
-
-      live "/agents", AgentLive.Index, :index
-      live "/agents/:id", AgentLive.Show, :show
-      live "/ops", OpsLive.Index, :index
-      live "/ops/signals", OpsLive.Index, :signals
-      live "/ops/deliveries", OpsLive.Index, :deliveries
-      live "/ops/dead-letters", OpsLive.Index, :dead_letters
-    end
-
-    get "/users/settings", UserSettingsController, :edit
-    put "/users/settings", UserSettingsController, :update
-    get "/users/settings/confirm-email/:token", UserSettingsController, :confirm_email
-  end
-
-  scope "/", JidoChatUIWeb do
-    pipe_through [:browser]
-
-    get "/users/log-in", UserSessionController, :new
-    get "/users/log-in/:token", UserSessionController, :confirm
-    post "/users/log-in", UserSessionController, :create
-    delete "/users/log-out", UserSessionController, :delete
-  end
+  # Generated auth modules remain in the codebase, but auth is not exposed in
+  # the local adapter workbench route surface.
 end

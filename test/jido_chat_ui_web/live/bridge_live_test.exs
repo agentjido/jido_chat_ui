@@ -18,7 +18,7 @@ defmodule JidoChatUIWeb.BridgeLiveTest do
   }
   @invalid_attrs %{name: nil, status: nil, adapter: ""}
 
-  setup :register_and_log_in_user
+  setup :workspace
 
   defp create_bridge(%{scope: scope}) do
     bridge = bridge_fixture(scope)

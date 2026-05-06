@@ -117,6 +117,65 @@ defmodule JidoChatUIWeb.RoomLive.Show do
 
         <aside class="space-y-4">
           <section class="rounded-lg border border-base-300 bg-base-100 p-4">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <h2 class="font-semibold">Message inspector</h2>
+                <p class="mt-1 text-xs opacity-60">
+                  Raw payload, normalized shape, persistence, and delivery metadata.
+                </p>
+              </div>
+              <span class="badge badge-sm">{length(@messages)}</span>
+            </div>
+
+            <div
+              :if={@messages == []}
+              class="mt-3 rounded border border-dashed border-base-300 p-3 text-sm opacity-70"
+            >
+              No persisted room messages yet.
+            </div>
+
+            <div :if={@messages != []} class="mt-3 space-y-3">
+              <.form for={%{}} as={:inspector} phx-change="select_message">
+                <label
+                  class="text-xs font-semibold uppercase opacity-60"
+                  for="message-inspector-select"
+                >
+                  Message
+                </label>
+                <select
+                  id="message-inspector-select"
+                  name="inspector[message_id]"
+                  class="select select-sm mt-1 w-full"
+                >
+                  <option
+                    :for={message <- @messages}
+                    value={message.id}
+                    selected={@selected_message && @selected_message.id == message.id}
+                  >
+                    {message_label(message)}
+                  </option>
+                </select>
+              </.form>
+
+              <div :if={@selected_message} class="space-y-3">
+                <.inspector_block
+                  title="Provider payload"
+                  value={provider_payload(@selected_message)}
+                />
+                <.inspector_block
+                  title="Normalized message"
+                  value={normalized_message(@selected_message)}
+                />
+                <.inspector_block
+                  title="Persisted record"
+                  value={persisted_record(@selected_message)}
+                />
+                <.inspector_block title="Delivery" value={delivery_record(@selected_message)} />
+              </div>
+            </div>
+          </section>
+
+          <section class="rounded-lg border border-base-300 bg-base-100 p-4">
             <h2 class="font-semibold">Room settings</h2>
             <.list>
               <:item title="Status">{@room.status}</:item>
@@ -271,49 +330,65 @@ defmodule JidoChatUIWeb.RoomLive.Show do
      |> assign(:room, room)
      |> assign(:agent, Agents.get_agent("room_assistant"))
      |> assign(:agent_settings, Agents.room_settings(room))
-     |> assign(:participants, Participants.list_for_room(room, socket.assigns.current_scope.user))}
+     |> assign(:participants, Participants.list_for_room(room, socket.assigns.current_scope.user))
+     |> assign(:selected_message_id, nil)
+     |> assign_message_inspector()}
   end
 
   @impl true
   def handle_event("timeline_message", %{"body" => body}, socket) do
     body = String.trim(to_string(body))
 
-    if body != "" do
-      user = socket.assigns.current_scope.user
-      {:ok, participant} = Participants.ensure_user_participant(user)
-      author = Participants.participant_name(participant)
-      room = socket.assigns.room
+    socket =
+      if body != "" do
+        user = socket.assigns.current_scope.user
+        {:ok, participant} = Participants.ensure_user_participant(user)
+        author = Participants.participant_name(participant)
+        room = socket.assigns.room
 
-      {:ok, message} =
-        Messaging.save_message(%{
-          room_id: to_string(room.id),
-          sender_id: participant.id,
-          role: :user,
-          content: [%{type: :text, text: body}],
-          status: :sent,
-          metadata: %{
-            "author" => author,
-            "participant_id" => participant.id,
-            "source" => "ui"
-          }
-        })
+        {:ok, message} =
+          Messaging.save_message(%{
+            room_id: to_string(room.id),
+            sender_id: participant.id,
+            role: :user,
+            content: [%{type: :text, text: body}],
+            status: :sent,
+            metadata: %{
+              "author" => author,
+              "participant_id" => participant.id,
+              "source" => "ui"
+            }
+          })
 
-      _ = Participants.add_message_to_room_server(room, message)
-      delivery_result = route_room_message(room.id, body)
+        _ = Participants.add_message_to_room_server(room, message)
+        delivery_result = route_room_message(room.id, body)
+        message = persist_delivery_result(message, delivery_result)
 
-      room.id
-      |> RoomTimeline.ensure_started(room.name)
-      |> RoomTimeline.post_message(
-        message
-        |> RoomTimeline.from_messaging_message()
-        |> put_delivery_status(delivery_result)
-      )
-    end
+        room.id
+        |> RoomTimeline.ensure_started(room.name)
+        |> RoomTimeline.post_message(
+          message
+          |> RoomTimeline.from_messaging_message()
+          |> put_delivery_status(delivery_result)
+        )
+
+        assign(socket, :selected_message_id, message.id)
+      else
+        socket
+      end
 
     {:noreply,
      socket
      |> update(:composer_version, &(&1 + 1))
-     |> refresh_room_participants()}
+     |> refresh_room_participants()
+     |> assign_message_inspector()}
+  end
+
+  def handle_event("select_message", %{"inspector" => %{"message_id" => message_id}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:selected_message_id, message_id)
+     |> assign_message_inspector()}
   end
 
   def handle_event("assistant_reply", params, socket) do
@@ -330,7 +405,10 @@ defmodule JidoChatUIWeb.RoomLive.Show do
             |> put_delivery_status(delivery_result)
           )
 
-          refresh_room_participants(socket)
+          socket
+          |> refresh_room_participants()
+          |> assign(:selected_message_id, message.id)
+          |> assign_message_inspector()
 
         {:error, reason} ->
           put_flash(socket, :error, "Room Assistant failed: #{inspect(reason)}")
@@ -400,6 +478,8 @@ defmodule JidoChatUIWeb.RoomLive.Show do
       delivery_result =
         relay_agent_reply(room.id, reply.body, agent_settings["relay_agent_replies"])
 
+      message = persist_delivery_result(message, delivery_result)
+
       {:ok, {message, delivery_result}}
     end
   end
@@ -440,12 +520,176 @@ defmodule JidoChatUIWeb.RoomLive.Show do
     :ok
   end
 
+  defp persist_delivery_result(message, delivery_result) do
+    message = annotate_delivery_result(message, delivery_result)
+
+    case Messaging.save_message_struct(message) do
+      {:ok, saved_message} -> saved_message
+      {:error, _reason} -> message
+    end
+  end
+
+  defp annotate_delivery_result(message, delivery_result) do
+    metadata =
+      (message.metadata || %{})
+      |> Map.merge(delivery_metadata(delivery_result))
+
+    %{
+      message
+      | status: delivery_message_status(message.status, delivery_result),
+        metadata: metadata,
+        updated_at: DateTime.utc_now(:second)
+    }
+  end
+
+  defp delivery_message_status(_status, {:ok, summary}) do
+    delivered = summary_items(summary, :delivered)
+    failed = summary_items(summary, :failed)
+
+    cond do
+      delivered != [] and failed == [] -> :delivered
+      delivered != [] -> :sent
+      true -> :failed
+    end
+  end
+
+  defp delivery_message_status(_status, {:error, _reason}), do: :failed
+  defp delivery_message_status(status, :no_routes), do: status
+  defp delivery_message_status(status, :agent_local_only), do: status
+
+  defp delivery_metadata({:ok, summary}) do
+    summary_metadata(summary, "delivered")
+  end
+
+  defp delivery_metadata({:error, {:delivery_failed, summary}}) do
+    summary
+    |> summary_metadata("delivery_failed")
+    |> Map.put("delivery_error", inspect(:delivery_failed))
+  end
+
+  defp delivery_metadata({:error, reason}) do
+    %{
+      "route_decision" => "delivery_error",
+      "delivery_error" => inspect(reason),
+      "attempted" => 0,
+      "delivered" => 0,
+      "failed" => 1
+    }
+  end
+
+  defp delivery_metadata(:no_routes) do
+    %{
+      "route_decision" => "no_routes",
+      "attempted" => 0,
+      "delivered" => 0,
+      "failed" => 0
+    }
+  end
+
+  defp delivery_metadata(:agent_local_only) do
+    %{
+      "route_decision" => "agent_local_only",
+      "attempted" => 0,
+      "delivered" => 0,
+      "failed" => 0
+    }
+  end
+
+  defp summary_metadata(summary, route_decision) do
+    delivered = summary_items(summary, :delivered)
+    failed = summary_items(summary, :failed)
+
+    %{
+      "route_decision" => route_decision,
+      "attempted" => metadata_value(summary, :attempted) || length(delivered) + length(failed),
+      "delivered" => length(delivered),
+      "failed" => length(failed),
+      "delivered_routes" => Enum.map(delivered, &delivery_success_record/1),
+      "failed_routes" => Enum.map(failed, &delivery_failure_record/1)
+    }
+    |> Map.merge(first_route_metadata(delivered, failed))
+  end
+
+  defp summary_items(summary, key) do
+    case metadata_value(summary, key) do
+      items when is_list(items) -> items
+      _other -> []
+    end
+  end
+
+  defp first_route_metadata(delivered, failed) do
+    (List.first(delivered) || List.first(failed))
+    |> case do
+      nil ->
+        %{}
+
+      delivery ->
+        delivery
+        |> metadata_value(:route)
+        |> route_metadata()
+    end
+  end
+
+  defp delivery_success_record(success) do
+    route = metadata_value(success, :route) || %{}
+    result = metadata_value(success, :result) || %{}
+
+    %{
+      "bridge_id" => route_value(route, :bridge_id),
+      "channel" => route_value(route, :channel),
+      "external_room_id" => route_value(route, :external_room_id),
+      "message_id" => normalize_delivery_value(metadata_value(result, :message_id)),
+      "operation" => normalize_delivery_value(metadata_value(result, :operation))
+    }
+    |> compact_metadata()
+  end
+
+  defp delivery_failure_record(failure) do
+    route = metadata_value(failure, :route) || %{}
+
+    %{
+      "bridge_id" => route_value(route, :bridge_id),
+      "channel" => route_value(route, :channel),
+      "external_room_id" => route_value(route, :external_room_id),
+      "reason" => inspect(metadata_value(failure, :reason))
+    }
+    |> compact_metadata()
+  end
+
+  defp route_metadata(route) do
+    %{
+      "bridge_id" => route_value(route, :bridge_id),
+      "channel" => route_value(route, :channel),
+      "delivery_external_room_id" => route_value(route, :external_room_id)
+    }
+    |> compact_metadata()
+  end
+
+  defp route_value(route, key), do: route |> metadata_value(key) |> normalize_delivery_value()
+
+  defp normalize_delivery_value(nil), do: nil
+  defp normalize_delivery_value(value) when is_binary(value), do: value
+  defp normalize_delivery_value(value) when is_atom(value), do: Atom.to_string(value)
+  defp normalize_delivery_value(value) when is_integer(value), do: Integer.to_string(value)
+  defp normalize_delivery_value(value), do: inspect(value)
+
+  defp compact_metadata(metadata) do
+    metadata
+    |> Enum.reject(fn {_key, value} -> is_nil(value) or value == "" end)
+    |> Map.new()
+  end
+
+  defp put_delivery_status(message, {:ok, %{delivered: delivered, failed: failed}})
+       when failed != [] do
+    %{message | status: "partial:#{length(delivered)}/#{length(delivered) + length(failed)}"}
+  end
+
   defp put_delivery_status(message, {:ok, %{delivered: delivered}}) do
     %{message | status: "delivered:#{length(delivered)}"}
   end
 
-  defp put_delivery_status(message, :no_routes), do: message
-  defp put_delivery_status(message, :agent_local_only), do: message
+  defp put_delivery_status(message, :no_routes), do: %{message | status: "no_routes"}
+  defp put_delivery_status(message, :agent_local_only), do: %{message | status: "local_only"}
 
   defp put_delivery_status(message, {:error, reason}) do
     metadata = Map.put(message.metadata || %{}, "delivery_error", inspect(reason))
@@ -480,7 +724,10 @@ defmodule JidoChatUIWeb.RoomLive.Show do
 
   def handle_info({:signal, %{type: "jido.messaging.room.message_added", data: data}}, socket) do
     if same_room?(data_value(data, :room_id), socket.assigns.room.id) do
-      {:noreply, refresh_room_participants(socket)}
+      {:noreply,
+       socket
+       |> refresh_room_participants()
+       |> assign_message_inspector()}
     else
       {:noreply, socket}
     end
@@ -518,6 +765,104 @@ defmodule JidoChatUIWeb.RoomLive.Show do
     )
   end
 
+  defp assign_message_inspector(socket) do
+    messages =
+      case Messaging.list_messages(to_string(socket.assigns.room.id), limit: 100) do
+        {:ok, messages} -> messages
+        {:error, _reason} -> []
+      end
+
+    selected_message =
+      Enum.find(messages, &(&1.id == socket.assigns[:selected_message_id])) || List.last(messages)
+
+    socket
+    |> assign(:messages, messages)
+    |> assign(:selected_message, selected_message)
+    |> assign(:selected_message_id, selected_message && selected_message.id)
+  end
+
+  attr :title, :string, required: true
+  attr :value, :any, required: true
+
+  defp inspector_block(assigns) do
+    ~H"""
+    <div>
+      <p class="text-xs font-semibold uppercase opacity-60">{@title}</p>
+      <pre class="mt-1 max-h-48 overflow-auto rounded bg-base-200 p-3 text-[0.7rem] leading-relaxed"><%= inspect(@value, pretty: true, limit: 40, printable_limit: 1_500) %></pre>
+    </div>
+    """
+  end
+
+  defp message_label(message) do
+    source =
+      message.metadata
+      |> metadata_value(:source)
+      |> case do
+        nil -> metadata_value(message.metadata, :channel) || "message"
+        value -> value
+      end
+
+    "#{source}: #{String.slice(message_text(message), 0, 48)}"
+  end
+
+  defp provider_payload(message) do
+    metadata = message.metadata || %{}
+
+    metadata_value(metadata, :raw_payload) ||
+      metadata_value(metadata, :provider_payload) ||
+      metadata_value(metadata, :raw) ||
+      metadata_value(metadata, :payload) ||
+      metadata_value(metadata, :event) ||
+      %{"metadata" => metadata}
+  end
+
+  defp normalized_message(message) do
+    %{
+      id: message.id,
+      room_id: message.room_id,
+      sender_id: message.sender_id,
+      role: message.role,
+      source:
+        metadata_value(message.metadata, :source) || metadata_value(message.metadata, :channel),
+      text: message_text(message)
+    }
+  end
+
+  defp persisted_record(message) do
+    %{
+      id: message.id,
+      room_id: message.room_id,
+      thread_id: message.thread_id,
+      external_id: message.external_id,
+      status: message.status,
+      inserted_at: message.inserted_at
+    }
+  end
+
+  defp delivery_record(message) do
+    metadata = message.metadata || %{}
+
+    %{
+      status: message.status,
+      bridge_id: metadata_value(metadata, :bridge_id),
+      channel: metadata_value(metadata, :channel),
+      delivery_error: metadata_value(metadata, :delivery_error),
+      route_decision: metadata_value(metadata, :route_decision),
+      delivered: metadata_value(metadata, :delivered)
+    }
+  end
+
+  defp message_text(message) do
+    Enum.find_value(message.content || [], "", fn
+      %{type: :text, text: text} when is_binary(text) -> text
+      %{"type" => "text", "text" => text} when is_binary(text) -> text
+      %{text: text} when is_binary(text) -> text
+      %{"text" => text} when is_binary(text) -> text
+      text when is_binary(text) -> text
+      _content -> nil
+    end)
+  end
+
   defp agent_mode_button_class(settings, mode) do
     [
       "btn join-item btn-xs",
@@ -536,5 +881,10 @@ defmodule JidoChatUIWeb.RoomLive.Show do
   end
 
   defp data_value(_data, _key), do: nil
+
+  defp metadata_value(metadata, key) when is_map(metadata),
+    do: Map.get(metadata, key) || Map.get(metadata, Atom.to_string(key))
+
+  defp metadata_value(_metadata, _key), do: nil
   defp same_room?(left, right), do: to_string(left) == to_string(right)
 end

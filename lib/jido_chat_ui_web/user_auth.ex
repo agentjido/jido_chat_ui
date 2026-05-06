@@ -5,7 +5,7 @@ defmodule JidoChatUIWeb.UserAuth do
   import Phoenix.Controller
 
   alias JidoChatUI.Accounts
-  alias JidoChatUI.Accounts.Scope
+  alias JidoChatUI.Workspace
 
   # Make the remember me cookie valid for 14 days. This should match
   # the session validity setting in UserToken.
@@ -16,15 +16,6 @@ defmodule JidoChatUIWeb.UserAuth do
     max_age: @max_cookie_age_in_days * 24 * 60 * 60,
     same_site: "Lax"
   ]
-
-  # How old the session token should be before a new one is issued. When a request is made
-  # with a session token older than this value, then a new session token will be created
-  # and the session and remember-me cookies (if set) will be updated with the new token.
-  # Lowering this value will result in more tokens being created by active users. Increasing
-  # it will result in less time before a session token expires for a user to get issued a new
-  # token. This can be set to a value greater than `@max_cookie_age_in_days` to disable
-  # the reissuing of tokens completely.
-  @session_reissue_age_in_days 7
 
   @doc """
   Logs the user in.
@@ -60,44 +51,10 @@ defmodule JidoChatUIWeb.UserAuth do
   end
 
   @doc """
-  Authenticates the user by looking into the session and remember me token.
-
-  Will reissue the session token if it is older than the configured age.
+  Assigns the local workbench workspace scope.
   """
   def fetch_current_scope_for_user(conn, _opts) do
-    with {token, conn} <- ensure_user_token(conn),
-         {user, token_inserted_at} <- Accounts.get_user_by_session_token(token) do
-      conn
-      |> assign(:current_scope, Scope.for_user(user))
-      |> maybe_reissue_user_session_token(user, token_inserted_at)
-    else
-      nil -> assign(conn, :current_scope, Scope.for_user(nil))
-    end
-  end
-
-  defp ensure_user_token(conn) do
-    if token = get_session(conn, :user_token) do
-      {token, conn}
-    else
-      conn = fetch_cookies(conn, signed: [@remember_me_cookie])
-
-      if token = conn.cookies[@remember_me_cookie] do
-        {token, conn |> put_token_in_session(token) |> put_session(:user_remember_me, true)}
-      else
-        nil
-      end
-    end
-  end
-
-  # Reissue the session token if it is older than the configured reissue age.
-  defp maybe_reissue_user_session_token(conn, user, token_inserted_at) do
-    token_age = DateTime.diff(DateTime.utc_now(:second), token_inserted_at, :day)
-
-    if token_age >= @session_reissue_age_in_days do
-      create_or_extend_session(conn, user, %{})
-    else
-      conn
-    end
+    assign(conn, :current_scope, Workspace.scope!())
   end
 
   # This function is the one responsible for creating session tokens
@@ -182,7 +139,7 @@ defmodule JidoChatUIWeb.UserAuth do
       socket =
         socket
         |> Phoenix.LiveView.put_flash(:error, "You must log in to access this page.")
-        |> Phoenix.LiveView.redirect(to: ~p"/users/log-in")
+        |> Phoenix.LiveView.redirect(to: ~p"/setup")
 
       {:halt, socket}
     end
@@ -193,12 +150,8 @@ defmodule JidoChatUIWeb.UserAuth do
   end
 
   defp current_scope_from_session(session) do
-    with token when is_binary(token) <- session["user_token"] || session[:user_token],
-         {user, _token_inserted_at} <- Accounts.get_user_by_session_token(token) do
-      Scope.for_user(user)
-    else
-      _ -> Scope.for_user(nil)
-    end
+    _session = session
+    Workspace.scope!()
   end
 
   @doc """
@@ -211,7 +164,7 @@ defmodule JidoChatUIWeb.UserAuth do
       conn
       |> put_flash(:error, "You must re-authenticate to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: ~p"/setup")
       |> halt()
     end
   end
@@ -229,7 +182,7 @@ defmodule JidoChatUIWeb.UserAuth do
     end
   end
 
-  defp signed_in_path(_conn), do: ~p"/rooms"
+  defp signed_in_path(_conn), do: ~p"/setup"
 
   @doc """
   Plug for routes that require the user to be authenticated.
@@ -241,7 +194,7 @@ defmodule JidoChatUIWeb.UserAuth do
       conn
       |> put_flash(:error, "You must log in to access this page.")
       |> maybe_store_return_to()
-      |> redirect(to: ~p"/users/log-in")
+      |> redirect(to: ~p"/setup")
       |> halt()
     end
   end

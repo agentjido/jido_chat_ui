@@ -1,8 +1,8 @@
 defmodule JidoChatUIWeb.PageControllerTest do
   use JidoChatUIWeb.ConnCase
 
-  test "GET /", %{conn: conn} do
+  test "GET / redirects to setup", %{conn: conn} do
     conn = get(conn, ~p"/")
-    assert html_response(conn, 200) =~ "Jido Chat UI"
+    assert redirected_to(conn) == ~p"/setup"
   end
 end

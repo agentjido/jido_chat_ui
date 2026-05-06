@@ -61,6 +61,11 @@ defmodule JidoChatUI.Adapters do
         %{key: "channel_id", label: "Channel ID", placeholder: "123456789012345678"},
         %{key: "user_id", label: "DM user ID", placeholder: "123456789012345678"},
         %{key: "bot_token_env", label: "Bot token env", placeholder: "DISCORD_BOT_TOKEN"},
+        %{
+          key: "bot_user_id_env",
+          label: "Bot user ID env",
+          placeholder: "DISCORD_BOT_USER_ID"
+        },
         %{key: "public_key_env", label: "Public key env", placeholder: "DISCORD_PUBLIC_KEY"}
       ]
     },
@@ -143,6 +148,28 @@ defmodule JidoChatUI.Adapters do
 
   def health_statuses(env_fun \\ &System.get_env/1) do
     Enum.map(all(), &health_status(&1, env_fun))
+  end
+
+  def capability_status(adapter) do
+    cond do
+      is_nil(adapter) ->
+        %{status: :unknown, detail: "Unknown adapter"}
+
+      !adapter.loaded? ->
+        %{status: :unavailable, detail: "Adapter package is not loaded"}
+
+      true ->
+        case Jido.Chat.Adapter.validate_capabilities(adapter.module) do
+          :ok -> %{status: :valid, detail: "Capability matrix is valid"}
+          {:error, reason} -> %{status: :invalid, detail: inspect(reason)}
+        end
+    end
+  rescue
+    exception ->
+      %{status: :invalid, detail: Exception.message(exception)}
+  catch
+    kind, reason ->
+      %{status: :invalid, detail: inspect({kind, reason})}
   end
 
   def health_status(adapter, env_fun \\ &System.get_env/1) do

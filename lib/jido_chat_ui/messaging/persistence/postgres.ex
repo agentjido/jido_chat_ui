@@ -282,9 +282,11 @@ defmodule JidoChatUI.Messaging.Persistence.Postgres do
 
   @impl true
   def create_room_binding(state, room_id, channel, bridge_id, external_id, attrs) do
+    room_id = to_string(room_id)
+
     case room_binding_by_key(state, channel, bridge_id, external_id) do
       {:ok, %RoomBinding{} = binding} ->
-        {:ok, binding}
+        update_room_binding(state, binding, room_id, attrs)
 
       {:error, :not_found} ->
         insert_room_binding(state, room_id, channel, bridge_id, external_id, attrs)
@@ -567,6 +569,24 @@ defmodule JidoChatUI.Messaging.Persistence.Postgres do
   rescue
     _exception ->
       room_binding_by_key(state, channel, bridge_id, external_id)
+  end
+
+  defp update_room_binding(state, %RoomBinding{} = binding, room_id, attrs) do
+    binding = %{
+      binding
+      | room_id: room_id,
+        direction: Map.get(attrs, :direction, Map.get(attrs, "direction", binding.direction)),
+        enabled: Map.get(attrs, :enabled, Map.get(attrs, "enabled", binding.enabled))
+    }
+
+    extra = %{
+      room_id: binding.room_id,
+      channel: normalize_term(binding.channel),
+      bridge_id: binding.bridge_id,
+      external_room_id: binding.external_room_id
+    }
+
+    upsert_by_id(state, @room_bindings, binding.id, binding, extra)
   end
 
   defp participant_id_by_binding(state, channel, external_id) do

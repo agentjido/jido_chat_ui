@@ -62,4 +62,47 @@ defmodule JidoChatUI.Messaging.Persistence.PostgresTest do
     assert {:ok, ^room} =
              Postgres.get_room_by_external_binding(state, :telegram, "bridge-1", "-1001")
   end
+
+  test "reassigns an existing external binding to the requested room", %{state: state} do
+    first_room = Room.new(%{id: "room-original", type: :group, name: "Original"})
+    next_room = Room.new(%{id: "room-next", type: :group, name: "Next"})
+
+    assert {:ok, ^first_room} = Postgres.save_room(state, first_room)
+    assert {:ok, ^next_room} = Postgres.save_room(state, next_room)
+
+    assert {:ok, original_binding} =
+             Postgres.create_room_binding(
+               state,
+               first_room.id,
+               :telegram,
+               "bridge-1",
+               "-1001",
+               %{direction: :inbound, enabled: false}
+             )
+
+    assert original_binding.room_id == first_room.id
+    assert original_binding.direction == :inbound
+    assert original_binding.enabled == false
+
+    assert {:ok, reassigned_binding} =
+             Postgres.create_room_binding(
+               state,
+               next_room.id,
+               :telegram,
+               "bridge-1",
+               "-1001",
+               %{direction: :both, enabled: true}
+             )
+
+    assert reassigned_binding.id == original_binding.id
+    assert reassigned_binding.room_id == next_room.id
+    assert reassigned_binding.direction == :both
+    assert reassigned_binding.enabled == true
+
+    assert {:ok, []} = Postgres.list_room_bindings(state, first_room.id)
+    assert {:ok, [^reassigned_binding]} = Postgres.list_room_bindings(state, next_room.id)
+
+    assert {:ok, ^next_room} =
+             Postgres.get_room_by_external_binding(state, :telegram, "bridge-1", "-1001")
+  end
 end

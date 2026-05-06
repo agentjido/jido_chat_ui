@@ -62,4 +62,16 @@ defmodule JidoChatUI.AdaptersTest do
 
     assert status.status == :connected
   end
+
+  test "capability_status/1 reports adapter capability validation" do
+    status =
+      "telegram"
+      |> Adapters.get()
+      |> Adapters.capability_status()
+
+    assert status.status in [:valid, :invalid]
+    assert is_binary(status.detail)
+
+    assert Adapters.capability_status(nil) == %{status: :unknown, detail: "Unknown adapter"}
+  end
 end
