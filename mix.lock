@@ -60,7 +60,7 @@
   "jido_chat": {:git, "https://github.com/agentjido/jido_chat.git", "093f78db30420826e974f7bb0137a774a256d9b7", [branch: "main"]},
   "jido_chat_discord": {:git, "https://github.com/agentjido/jido_chat_discord.git", "c61470525231725ceb667d67af9f7961b06147da", [branch: "main"]},
   "jido_chat_github": {:git, "https://github.com/agentjido/jido_chat_github.git", "67c2b13cde162f9f7fa07a511263357e93326c96", [branch: "main"]},
-  "jido_chat_mattermost": {:git, "https://github.com/mikehostetler/jido_chat_mattermost.git", "86735e23c2e6d472a3abeded0619303dd250b852", [branch: "main"]},
+  "jido_chat_mattermost": {:git, "https://github.com/www-zaq-ai/jido_chat_mattermost.git", "94b100252f113613623a46bd46fbbef8b92d03be", [branch: "main"]},
   "jido_chat_slack": {:git, "https://github.com/agentjido/jido_chat_slack.git", "f072de707c08540a08398436db5d7c668e778514", [branch: "main"]},
   "jido_chat_telegram": {:git, "https://github.com/agentjido/jido_chat_telegram.git", "ddf80c8d79cd39ba085914641e22f5910c79c568", [branch: "main"]},
   "jido_chat_x": {:git, "https://github.com/agentjido/jido_chat_x.git", "c9f42d0004785a557ef6d1aa5d9b26c0421932ed", [branch: "main"]},

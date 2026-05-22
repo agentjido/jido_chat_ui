@@ -77,7 +77,7 @@ defmodule JidoChatUI.MixProject do
       {:jido_ai, github: "agentjido/jido_ai", branch: "feat/structured-output", override: true},
       {:jido_chat_discord, github: "agentjido/jido_chat_discord", branch: "main"},
       {:jido_chat_github, github: "agentjido/jido_chat_github", branch: "main"},
-      {:jido_chat_mattermost, github: "mikehostetler/jido_chat_mattermost", branch: "main"},
+      {:jido_chat_mattermost, github: "www-zaq-ai/jido_chat_mattermost", branch: "main"},
       {:jido_chat_slack, github: "agentjido/jido_chat_slack", branch: "main"},
       {:jido_chat_telegram, github: "agentjido/jido_chat_telegram", branch: "main"},
       {:jido_chat_x, github: "agentjido/jido_chat_x", branch: "main"},
