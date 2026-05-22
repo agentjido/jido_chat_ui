@@ -81,6 +81,9 @@ defmodule JidoChatUI.MixProject do
       {:jido_chat_slack, github: "agentjido/jido_chat_slack", branch: "main"},
       {:jido_chat_telegram, github: "agentjido/jido_chat_telegram", branch: "main"},
       {:jido_chat_x, github: "agentjido/jido_chat_x", branch: "main"},
+      # Fresh 0.4.4 uses charlist elixirc_paths, which Elixir 1.20 rejects.
+      {:fresh,
+       github: "agentjido/fresh", ref: "8cb7bd05478d3ddbd4fd1939ac202b3a3393fc33", override: true},
 
       # Jido package quality baseline.
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
