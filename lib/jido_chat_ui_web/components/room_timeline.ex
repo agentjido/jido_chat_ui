@@ -12,10 +12,13 @@ defmodule JidoChatUIWeb.Components.RoomTimeline do
     prop(:room_name, :string, required: true)
 
     def render(%{room_id: room_id, room_name: room_name}) do
-      {_server, state} =
+      state =
         use_observable(
           fn -> RoomTimeline.ensure_started(room_id, room_name) end,
-          disconnected: RoomTimeline.disconnected_state(room_id, room_name)
+          fn
+            :disconnected -> RoomTimeline.disconnected_state(room_id, room_name)
+            state -> state
+          end
         )
 
       {filter, set_filter} = use_state("all")

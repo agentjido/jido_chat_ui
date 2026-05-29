@@ -71,7 +71,7 @@ defmodule JidoChatUI.RoomTimeline do
   end
 
   @impl Filament.Observable
-  def handle_subscribe(_request, _subscriber, state), do: {:ok, state, state}
+  def handle_subscribe(_subscriber, state), do: {:ok, state, state}
 
   @impl GenServer
   def handle_call({:post_message, attrs}, _from, state) do

@@ -5,13 +5,9 @@ defmodule JidoChatUI.Agents.RoomAssistant do
 
   use Jidoka.Agent
 
-  agent do
-    id(:room_assistant)
-    description("Helps developers test Jido chat rooms and bridges.")
-  end
-
-  defaults do
+  agent :room_assistant do
     model(:fast)
+    description("Helps developers test Jido chat rooms and bridges.")
 
     instructions("""
     You help developers test Jido chat adapters. Explain what happened in the room,
