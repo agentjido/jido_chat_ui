@@ -75,6 +75,10 @@ Controllers automatically have the `current_scope` available if they use the `:b
 
 <!-- phoenix-gen-auth-end -->
 
+## Release Hygiene
+
+- Do not modify `CHANGELOG.md`; release notes are generated from Git history during release, so keep changes focused on proper Conventional Commits.
+
 <!-- usage-rules-start -->
 
 <!-- phoenix:elixir-start -->
