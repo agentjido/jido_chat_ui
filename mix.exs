@@ -4,6 +4,8 @@ defmodule JidoChatUI.MixProject do
   def project do
     [
       app: :jido_chat_ui,
+      description:
+        "DEPRECATED: Legacy Jido Chat UI workbench. This repo is read-only; use jido_assembly for current examples.",
       version: "0.1.0",
       elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),

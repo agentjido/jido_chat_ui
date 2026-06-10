@@ -1,4 +1,10 @@
-# Jido Chat UI
+# Jido Chat UI (Deprecated)
+
+> [!WARNING]
+> This repository is deprecated and read-only. It is preserved for historical reference only.
+> The current, maintained `jido-chat` example app is now [`jido_assembly`](https://github.com/agentjido/jido_assembly).
+
+Use `jido_assembly` for the active Jido Chat ecosystem demo and reference implementation.
 
 Phoenix developer console for testing the `jido_chat_*`, `jido_messaging`, and `jidoka` ecosystem.
 
@@ -13,7 +19,9 @@ This repo is a local adapter workbench for development:
 
 ## Status
 
-Early local workbench. The app boots as a Phoenix/Postgres project and includes adapter labs, room and bridge management, guide pages, ops pages, a Filament-backed room timeline, `jido_messaging` Postgres persistence, and a basic Room Assistant.
+Deprecated read-only local workbench. The app boots as a Phoenix/Postgres project and includes adapter labs, room and bridge management, guide pages, ops pages, a Filament-backed room timeline, `jido_messaging` Postgres persistence, and a basic Room Assistant.
+
+For new demos, examples, and ecosystem validation, use `jido_assembly` instead.
 
 Auth is not part of the product flow. The app uses one internal workspace identity for existing ownership fields and keeps provider secrets in `.env`.
 
